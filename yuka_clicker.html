@@ -1,0 +1,2628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>$YUKA Clicker — Chrome Edition</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at 50% 42%, #525255 0%, #2a2a2d 38%, #111113 76%, #060607 100%);
+            color: #f4f4f6;
+        }
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+            padding-top: max(10px, calc(var(--safe-top) + 4px));
+            padding-bottom: max(10px, calc(var(--safe-bottom) + 4px));
+            position: relative;
+        }
+        @media (min-width: 768px) {
+            body {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+            }
+            .app-shell {
+                height: min(860px, 94dvh);
+                max-width: 460px;
+                border-radius: 32px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+                background: radial-gradient(circle at 50% 42%, rgba(82, 82, 85, 0.35) 0%, rgba(17, 17, 19, 0.88) 78%, rgba(6, 6, 7, 0.96) 100%);
+                overflow: hidden;
+            }
+        }
+        .chrome-panel {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.025));
+            border: 1px solid rgba(255, 255, 255, 0.11);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+        .chrome-btn {
+            background: linear-gradient(180deg, #f4f4f6 0%, #c8c9ce 50%, #9b9da4 100%);
+            color: #0b0b0d;
+            font-weight: 800;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transition: transform 0.12s ease, filter 0.15s ease;
+        }
+        .chrome-btn:active {
+            transform: scale(0.96);
+        }
+        .chrome-btn:disabled {
+            opacity: 0.4;
+            filter: grayscale(1);
+            pointer-events: none;
+        }
+        .tab-scroll {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: none;
+        }
+        .tab-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        /* Главная монета */
+        .coin-stage {
+            position: relative;
+            width: min(64vw, 256px);
+            height: min(64vw, 256px);
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: transform 0.08s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .coin-aura {
+            position: absolute;
+            inset: -14px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 70%);
+            pointer-events: none;
+            animation: pulseAura 3.4s ease-in-out infinite;
+        }
+        @keyframes pulseAura {
+            0%, 100% { transform: scale(0.96); opacity: 0.65; }
+            50% { transform: scale(1.04); opacity: 1; }
+        }
+        .coin-disc {
+            width: 100%;
+            height: 100%;
+            border-radius: 9999px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 22px 50px rgba(0, 0, 0, 0.8), 0 0 36px rgba(255, 255, 255, 0.08);
+            background: transparent;
+        }
+        .coin-disc.fallback-mode {
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #d4d5da 34%, #7e8088 74%, #3c3d42 100%);
+            border: 4px solid rgba(255, 255, 255, 0.45);
+        }
+        .coin-disc img.coin-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 9999px;
+            display: block;
+            pointer-events: none;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: high-quality;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+        .float-tap {
+            position: fixed;
+            pointer-events: none;
+            font-weight: 900;
+            font-size: 24px;
+            color: #ffffff;
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.85);
+            z-index: 90;
+            animation: floatUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.85); }
+            100% { opacity: 0; transform: translate(-50%, -145px) scale(1.18); }
+        }
+        .nav-item.active {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+            border-color: rgba(255, 255, 255, 0.28);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell px-3.5">
+        <!-- Верхняя шапка -->
+        <header class="chrome-panel rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 shrink-0">
+            <button onclick="openProfileModal()" class="flex items-center gap-2.5 text-left active:scale-95 transition-transform">
+                <div id="user-avatar" class="w-9 h-9 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-600 text-zinc-950 font-black flex items-center justify-center text-sm shadow-inner">
+                    Y
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span id="user-name" class="text-xs font-bold text-white truncate max-w-[115px]">YUKA Pioneer</span>
+                        <span id="prestige-badge" class="hidden text-[10px] font-black px-1.5 py-0.5 rounded bg-white/15 text-zinc-200">T1</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                        <span id="league-name" class="font-semibold text-zinc-300">Хром I</span>
+                        <span>•</span>
+                        <span id="squad-tag" class="text-zinc-400">Без сквада</span>
+                    </div>
+                </div>
+            </button>
+
+            <div class="flex items-center gap-2">
+                <div class="bg-black/45 border border-white/10 rounded-xl px-2.5 py-1.5 text-right">
+                    <div class="text-[9px] uppercase tracking-wider text-zinc-400 font-semibold">Прибыль в час</div>
+                    <div class="flex items-center justify-end gap-1 text-xs font-extrabold text-white">
+                        <span class="mini-coin-slot inline-flex w-3.5 h-3.5 rounded-full overflow-hidden items-center justify-center"></span>
+                        <span id="passive-rate">+0</span>
+                    </div>
+                </div>
+                <button onclick="openDailyModal()" class="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-zinc-200 hover:bg-white/20 active:scale-95 transition relative" title="Ежедневная награда">
+                    <i class="fa-solid fa-calendar-check text-sm"></i>
+                    <span id="daily-dot" class="w-2 h-2 rounded-full bg-emerald-400 absolute top-1.5 right-1.5"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Контент вкладок -->
+        <main class="flex-1 overflow-hidden flex flex-col mt-2.5">
+            <!-- ВКЛАДКА 1: КЛИКЕР -->
+            <section id="tab-clicker" class="tab-scroll flex flex-col justify-between pb-1">
+                <!-- Баланс и прогресс лиги -->
+                <div class="text-center mt-1">
+                    <div class="inline-flex items-center justify-center gap-2.5">
+                        <span class="mini-coin-slot w-8 h-8 rounded-full overflow-hidden inline-flex items-center justify-center shadow-lg"></span>
+                        <span id="balance-display" class="text-4xl font-black tracking-tight text-white">0</span>
+                    </div>
+                    <div class="mt-2 max-w-[260px] mx-auto">
+                        <div class="flex justify-between text-[10px] font-semibold text-zinc-400 mb-1">
+                            <span id="league-progress-label">Хром I</span>
+                            <span id="league-next-label">До Хром II: 5 000</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                            <div id="league-progress-bar" class="h-full bg-gradient-to-r from-zinc-400 to-white rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Шифр Морзе индикатор -->
+                <div class="flex flex-col items-center my-1">
+                    <button onclick="toggleMorseMode()" id="morse-toggle-btn" class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5 hover:bg-white/10 transition">
+                        <i class="fa-solid fa-wave-square text-zinc-400"></i>
+                        <span id="morse-btn-text">Шифр дня: +50 000 $YUKA</span>
+                    </button>
+                    <div id="morse-panel" class="hidden mt-1.5 flex items-center gap-1.5">
+                        <div id="morse-slots" class="flex gap-1"></div>
+                        <span id="morse-buffer" class="text-xs font-mono text-zinc-300 bg-black/50 px-2 py-0.5 rounded border border-white/10 min-w-[36px] text-center">...</span>
+                    </div>
+                </div>
+
+                <!-- Центральная монета -->
+                <div class="flex-1 flex items-center justify-center my-1">
+                    <div id="coin-btn" class="coin-stage"
+                         onpointerdown="handleCoinDown(event)"
+                         onpointerup="handleCoinUp(event)">
+                        <div class="coin-aura"></div>
+                        <div id="coin-disc" class="coin-disc fallback-mode">
+                            <img id="main-coin-img" class="coin-photo hidden" alt="$YUKA Coin">
+                            <div id="main-coin-fallback" class="flex flex-col items-center justify-center text-zinc-900 select-none">
+                                <span class="text-4xl font-black tracking-tighter">$YUKA</span>
+                                <span class="text-[10px] font-extrabold uppercase tracking-[0.25em] opacity-70 mt-0.5">CHROME</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Энергия и быстрые бустеры -->
+                <div class="chrome-panel rounded-2xl p-3">
+                    <div class="flex items-center justify-between text-xs font-bold mb-1.5">
+                        <div class="flex items-center gap-1.5 text-white">
+                            <i class="fa-solid fa-bolt text-amber-300"></i>
+                            <span id="energy-text">1000 / 1000</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-[11px] text-zinc-300">
+                            <span>+<span id="tap-power-display">1</span> за тап</span>
+                            <span id="turbo-badge" class="hidden px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold">TURBO ×3</span>
+                        </div>
+                    </div>
+                    <div class="w-full h-2.5 bg-black/60 rounded-full overflow-hidden border border-white/10 mb-2.5">
+                        <div id="energy-bar" class="h-full bg-gradient-to-r from-zinc-400 via-zinc-200 to-white rounded-full transition-all duration-150" style="width: 100%"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="activateFullEnergy()" id="btn-full-energy" class="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl py-2 px-2.5 flex items-center justify-between text-left active:scale-95 transition">
+                            <div>
+                                <div class="text-[11px] font-bold text-white">Полный заряд</div>
+                                <div class="text-[10px] text-zinc-400" id="full-energy-charges">3 / 3 доступно</div>
+                            </div>
+                            <i class="fa-solid fa-battery-full text-emerald-400 text-sm"></i>
+                        </button>
+                        <button onclick="activateTurbo()" id="btn-turbo" class="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl py-2 px-2.5 flex items-center justify-between text-left active:scale-95 transition">
+                            <div>
+                                <div class="text-[11px] font-bold text-white">Хром-Турбо ×3</div>
+                                <div class="text-[10px] text-zinc-400" id="turbo-charges">3 / 3 доступно</div>
+                            </div>
+                            <i class="fa-solid fa-fire text-amber-400 text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ВКЛАДКА 2: УЛУЧШЕНИЯ И СКИНЫ -->
+            <section id="tab-upgrades" class="tab-scroll hidden space-y-2.5 pb-2">
+                <div class="flex gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+                    <button onclick="switchUpgradeSubtab('mining')" id="sub-mining" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/15 text-white">Майнинг</button>
+                    <button onclick="switchUpgradeSubtab('click')" id="sub-click" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400">Сила тапа</button>
+                    <button onclick="switchUpgradeSubtab('skins')" id="sub-skins" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400">Скины</button>
+                    <button onclick="switchUpgradeSubtab('prestige')" id="sub-prestige" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400">Переплавка</button>
+                </div>
+                <div id="upgrades-list" class="space-y-2"></div>
+            </section>
+
+            <!-- ВКЛАДКА 3: МИНИ-ИГРЫ -->
+            <section id="tab-games" class="tab-scroll hidden space-y-2.5 pb-2">
+                <div class="chrome-panel rounded-2xl p-3">
+                    <h2 class="text-sm font-extrabold text-white">Аркадный центр $YUKA</h2>
+                    <p class="text-[11px] text-zinc-400 mt-0.5">Зарабатывай дополнительные токены и ставь рекорды в 6 мини-играх</p>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button onclick="openMiniGame('flappy')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-dove"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">YUKA Flappy</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">Обходи колонны 3D-маскотом</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Рекорд: <span id="rec-flappy">0</span></div>
+                    </button>
+
+                    <button onclick="openMiniGame('worm')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-worm"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">YUKA Worm</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">Собирай монеты и подрезай врагов</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Рекорд: <span id="rec-worm">0</span></div>
+                    </button>
+
+                    <button onclick="openMiniGame('blitz')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">YUKA Блиц</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">Лови монеты за 15 сек, не жми бомбы</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Рекорд: <span id="rec-blitz">0</span></div>
+                    </button>
+
+                    <button onclick="openMiniGame('safe')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-vault"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">Хромовый Сейф</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">Открой ячейки с монетами без мины</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Ставка от $100</div>
+                    </button>
+
+                    <button onclick="openMiniGame('slots')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-dice"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">YUKA Слоты</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">3 барабана и множитель до ×10</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Ставка от $100</div>
+                    </button>
+
+                    <button onclick="openMiniGame('crash')" class="chrome-panel rounded-2xl p-3 text-left hover:border-white/25 active:scale-95 transition">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white mb-2">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div class="text-xs font-extrabold text-white">YUKA Crash</div>
+                        <div class="text-[10px] text-zinc-400 mt-0.5">Забери ставку до обвала графика</div>
+                        <div class="text-[10px] font-bold text-zinc-300 mt-2">Пик: <span id="rec-crash">1.00</span>x</div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ВКЛАДКА 4: ЗАДАНИЯ И АЧИВКИ -->
+            <section id="tab-tasks" class="tab-scroll hidden space-y-2.5 pb-2">
+                <!-- Реферальный блок -->
+                <div class="chrome-panel rounded-2xl p-3.5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-white">Пригласи друзей</h3>
+                            <p class="text-[11px] text-zinc-400 mt-0.5">+10 000 $YUKA тебе и другу за вход</p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-bold text-white" id="friends-count">0 друзей</span>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="shareInviteLink()" class="chrome-btn flex-1 py-2.5 rounded-xl text-xs">
+                            <i class="fa-solid fa-paper-plane mr-1.5"></i>Пригласить в Telegram
+                        </button>
+                        <button onclick="copyInviteLink()" class="px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs font-bold active:scale-95 transition">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Задания -->
+                <div class="text-xs font-extrabold uppercase tracking-wider text-zinc-400 px-1">Ежедневные и стартовые задания</div>
+                <div id="tasks-list" class="space-y-2"></div>
+
+                <!-- Достижения -->
+                <div class="text-xs font-extrabold uppercase tracking-wider text-zinc-400 px-1 pt-1">Достижения</div>
+                <div id="achievements-list" class="grid grid-cols-2 gap-2"></div>
+            </section>
+
+            <!-- ВКЛАДКА 5: ТОП И СКВАДЫ -->
+            <section id="tab-top" class="tab-scroll hidden space-y-2.5 pb-2">
+                <div class="flex gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+                    <button onclick="switchTopSubtab('players')" id="sub-players" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/15 text-white">Игроки</button>
+                    <button onclick="switchTopSubtab('squads')" id="sub-squads" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400">Сквады и Казна</button>
+                </div>
+                <div id="top-content" class="space-y-2"></div>
+            </section>
+
+            <!-- ВКЛАДКА 6: ПРОЕКТ (ДОРОЖНАЯ КАРТА, ИСТОРИЯ, СОЦСЕТИ — ЗАКРЫТО) -->
+            <section id="tab-project" class="tab-scroll hidden space-y-3 pb-2">
+                <div class="chrome-panel rounded-2xl p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-black text-white">О проекте $YUKA</h2>
+                            <p class="text-xs text-zinc-400 mt-0.5">Официальные разделы экосистемы</p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-[10px] font-extrabold uppercase tracking-wider text-zinc-300">
+                            <i class="fa-solid fa-lock mr-1"></i>Скоро
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Карточка 1: Дорожная карта -->
+                <div class="chrome-panel rounded-2xl p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-zinc-200">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-extrabold text-white">Дорожная карта</div>
+                                <div class="text-[11px] text-zinc-400">Этапы развития и листинг в будущем</div>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 text-[11px] font-bold text-zinc-300">
+                            <i class="fa-solid fa-lock mr-1 text-zinc-400"></i>Закрыто
+                        </span>
+                    </div>
+                    <div class="rounded-xl bg-black/40 border border-white/5 p-3 text-center">
+                        <p class="text-xs font-semibold text-zinc-400">Раздел временно закрыт. Информация о фазах развития будет опубликована позже.</p>
+                    </div>
+                </div>
+
+                <!-- Карточка 2: История проекта -->
+                <div class="chrome-panel rounded-2xl p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-zinc-200">
+                                <i class="fa-solid fa-book-open"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-extrabold text-white">История проекта</div>
+                                <div class="text-[11px] text-zinc-400">Идея создания и лор вселенной $YUKA</div>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 text-[11px] font-bold text-zinc-300">
+                            <i class="fa-solid fa-lock mr-1 text-zinc-400"></i>Закрыто
+                        </span>
+                    </div>
+                    <div class="rounded-xl bg-black/40 border border-white/5 p-3 text-center">
+                        <p class="text-xs font-semibold text-zinc-400">Раздел временно закрыт. История основания проекта появится здесь позже.</p>
+                    </div>
+                </div>
+
+                <!-- Карточка 3: Соцсети проекта -->
+                <div class="chrome-panel rounded-2xl p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-zinc-200">
+                                <i class="fa-solid fa-share-nodes"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-extrabold text-white">Соцсети проекта</div>
+                                <div class="text-[11px] text-zinc-400">Официальные каналы и комьюнити</div>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 text-[11px] font-bold text-zinc-300">
+                            <i class="fa-solid fa-lock mr-1 text-zinc-400"></i>Закрыто
+                        </span>
+                    </div>
+                    <div class="rounded-xl bg-black/40 border border-white/5 p-3 text-center">
+                        <p class="text-xs font-semibold text-zinc-400">Раздел временно закрыт. Ссылки на официальные соцсети будут добавлены позже.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Нижняя навигация (6 вкладок) -->
+        <nav class="chrome-panel rounded-2xl p-1.5 grid grid-cols-6 gap-1 mt-2 shrink-0">
+            <button onclick="switchTab('clicker')" id="nav-clicker" class="nav-item active border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-coins text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Майнинг</span>
+            </button>
+            <button onclick="switchTab('upgrades')" id="nav-upgrades" class="nav-item border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-microchip text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Бусты</span>
+            </button>
+            <button onclick="switchTab('games')" id="nav-games" class="nav-item border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-gamepad text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Игры</span>
+            </button>
+            <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-list-check text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Задачи</span>
+            </button>
+            <button onclick="switchTab('top')" id="nav-top" class="nav-item border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-trophy text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Топ</span>
+            </button>
+            <button onclick="switchTab('project')" id="nav-project" class="nav-item border border-transparent rounded-xl py-2 flex flex-col items-center justify-center text-zinc-400 transition">
+                <i class="fa-solid fa-compass text-sm"></i>
+                <span class="text-[10px] font-bold mt-1">Проект</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: МИНИ-ИГРЫ -->
+    <div id="minigame-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3">
+        <div class="chrome-panel rounded-3xl w-full max-w-[440px] p-4 flex flex-col max-h-[92dvh]">
+            <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+                <h3 id="mg-title" class="text-base font-black text-white">Мини-игра</h3>
+                <button onclick="closeMiniGame()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-zinc-300 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="mg-body" class="mt-3 flex-1 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ЕЖЕДНЕВНЫЕ НАГРАДЫ -->
+    <div id="daily-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="chrome-panel rounded-3xl w-full max-w-[400px] p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-black text-white">Ежедневный бонус</h3>
+                <button onclick="document.getElementById('daily-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-zinc-300">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-zinc-400 mb-3">Заходи каждый день подряд, чтобы забирать растущие награды $YUKA.</p>
+            <div id="daily-grid" class="grid grid-cols-4 gap-2 mb-4"></div>
+            <button id="claim-daily-btn" onclick="claimDailyReward()" class="chrome-btn w-full py-3 rounded-xl text-sm">Забрать награду</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ОФЛАЙН ДОХОД + ЧЕЛЛЕНДЖ X2 -->
+    <div id="offline-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="chrome-panel rounded-3xl w-full max-w-[390px] p-5 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-3 text-white text-xl">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <h3 class="text-lg font-black text-white">Твои фермы работали!</h3>
+            <p class="text-xs text-zinc-400 mt-1">Пока тебя не было, оборудование намайнило:</p>
+            <div class="my-4 py-3 px-4 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center gap-2">
+                <span class="mini-coin-slot w-6 h-6 rounded-full overflow-hidden inline-flex items-center justify-center"></span>
+                <span id="offline-amount" class="text-2xl font-black text-white">+0</span>
+            </div>
+            <div id="offline-challenge-box" class="hidden mb-3">
+                <div class="text-xs font-bold text-amber-300 mb-2">Сделай 15 тапов за <span id="offline-timer">5.0</span>с для ×2!</div>
+                <button onclick="tapOfflineChallenge()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-zinc-200 to-white text-black font-black text-base active:scale-95 transition">
+                    ЖМИ! (<span id="offline-taps">0</span> / 15)
+                </button>
+            </div>
+            <div id="offline-actions" class="grid grid-cols-2 gap-2">
+                <button onclick="claimOffline(1)" class="py-3 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-white">Забрать ×1</button>
+                <button onclick="startOfflineChallenge()" class="chrome-btn py-3 rounded-xl text-xs">Удвоить ×2</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ПРОФИЛЬ И СТАТИСТИКА -->
+    <div id="profile-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="chrome-panel rounded-3xl w-full max-w-[400px] p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-black text-white">Профиль майнера</h3>
+                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-zinc-300">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="profile-stats-body" class="space-y-2 text-xs"></div>
+        </div>
+    </div>
+
+    <!-- ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ (TOAST) -->
+    <div id="toast-box" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none opacity-0 transition-all duration-300">
+        <div class="chrome-panel rounded-full px-4 py-2 flex items-center gap-2 shadow-2xl border border-white/20">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>
+            <span id="toast-text" class="text-xs font-bold text-white whitespace-nowrap">Уведомление</span>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. НАСТРОЙКА ПОЛЬЗОВАТЕЛЬСКОЙ МОНЕТЫ (ULTRA-HD 2048x2048)
+        // ==========================================
+        const CUSTOM_COIN_IMG_URL = 'https://ibb.co/fY1QjmBs';
+        let customCoinDataUrl = '';
+        let customCoinImgObj = null;
+
+        function buildTightCircleCoinCanvas(img) {
+            const SIZE = 2048;
+            const temp = document.createElement('canvas');
+            const w = img.naturalWidth || img.width || 1024;
+            const h = img.naturalHeight || img.height || 1024;
+            temp.width = w;
+            temp.height = h;
+            const tctx = temp.getContext('2d');
+            tctx.imageSmoothingEnabled = true;
+            tctx.imageSmoothingQuality = 'high';
+            tctx.drawImage(img, 0, 0, w, h);
+
+            let cropX = 0, cropY = 0, cropSize = Math.min(w, h);
+            try {
+                const data = tctx.getImageData(0, 0, w, h).data;
+                const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+                let bgR = 0, bgG = 0, bgB = 0;
+                corners.forEach(([cx, cy]) => {
+                    const idx = (cy * w + cx) * 4;
+                    bgR += data[idx];
+                    bgG += data[idx + 1];
+                    bgB += data[idx + 2];
+                });
+                bgR /= 4; bgG /= 4; bgB /= 4;
+
+                let minX = w, minY = h, maxX = 0, maxY = 0, found = false;
+                for (let y = 0; y < h; y += 1) {
+                    for (let x = 0; x < w; x += 1) {
+                        const idx = (y * w + x) * 4;
+                        if (data[idx + 3] < 30) continue;
+                        const diff = Math.abs(data[idx] - bgR) + Math.abs(data[idx + 1] - bgG) + Math.abs(data[idx + 2] - bgB);
+                        if (diff > 32) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                            found = true;
+                        }
+                    }
+                }
+                if (found && (maxX - minX) > w * 0.2 && (maxY - minY) > h * 0.2) {
+                    const cx = (minX + maxX) / 2;
+                    const cy = (minY + maxY) / 2;
+                    const radius = Math.min(maxX - minX, maxY - minY) * 0.486;
+                    cropX = Math.max(0, cx - radius);
+                    cropY = Math.max(0, cy - radius);
+                    cropSize = Math.min(w - cropX, h - cropY, radius * 2);
+                } else {
+                    const side = Math.min(w, h) * 0.92;
+                    cropX = (w - side) / 2;
+                    cropY = (h - side) / 2;
+                    cropSize = side;
+                }
+            } catch (e) {
+                const side = Math.min(w, h) * 0.92;
+                cropX = (w - side) / 2;
+                cropY = (h - side) / 2;
+                cropSize = side;
+            }
+
+            const out = document.createElement('canvas');
+            out.width = SIZE;
+            out.height = SIZE;
+            const ctx = out.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.beginPath();
+            ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(temp, cropX, cropY, cropSize, cropSize, 0, 0, SIZE, SIZE);
+            return out;
+        }
+
+        function buildCoinImgMarkup(sizeClass = 'w-6 h-6') {
+            if (customCoinDataUrl) {
+                return `<img src="${customCoinDataUrl}" class="${sizeClass} rounded-full object-cover inline-block pointer-events-none" alt="$YUKA">`;
+            }
+            return `<span class="${sizeClass} rounded-full bg-gradient-to-br from-white via-zinc-300 to-zinc-600 text-zinc-950 font-black text-[10px] inline-flex items-center justify-center shadow-inner">$Y</span>`;
+        }
+
+        function refreshAllCoinSlots() {
+            document.querySelectorAll('.mini-coin-slot').forEach(slot => {
+                const cls = slot.className.replace('mini-coin-slot', '').trim();
+                slot.innerHTML = buildCoinImgMarkup('w-full h-full');
+            });
+        }
+
+        function applyLoadedCoinUrl(url) {
+            customCoinDataUrl = url;
+            const mainImg = document.getElementById('main-coin-img');
+            const fallback = document.getElementById('main-coin-fallback');
+            const disc = document.getElementById('coin-disc');
+            if (mainImg && fallback && disc) {
+                mainImg.src = url;
+                mainImg.classList.remove('hidden');
+                fallback.classList.add('hidden');
+                disc.classList.remove('fallback-mode');
+            }
+            const readyImg = new Image();
+            readyImg.src = url;
+            readyImg.onload = () => { customCoinImgObj = readyImg; };
+            refreshAllCoinSlots();
+        }
+
+        function initCustomCoinAsset() {
+            const tryUrls = [];
+            if (CUSTOM_COIN_IMG_URL.includes('ibb.co/') && !CUSTOM_COIN_IMG_URL.includes('i.ibb.co/')) {
+                const slug = CUSTOM_COIN_IMG_URL.split('/').filter(Boolean).pop();
+                tryUrls.push(`https://images.weserv.nl/?url=ibb.co/${slug}&output=png&w=2048&q=100`);
+                tryUrls.push(`https://wsrv.nl/?url=ibb.co/${slug}&output=png&w=2048&q=100`);
+                tryUrls.push(`https://i.ibb.co/${slug}/coin.png`);
+                tryUrls.push(`https://i.ibb.co/${slug}/image.png`);
+                tryUrls.push(`https://i.ibb.co/${slug}/coin.jpg`);
+            }
+            tryUrls.push(CUSTOM_COIN_IMG_URL);
+
+            let idx = 0;
+            function attempt() {
+                if (idx >= tryUrls.length) {
+                    refreshAllCoinSlots();
+                    return;
+                }
+                const currentUrl = tryUrls[idx];
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    if ((img.naturalWidth || 0) < 32) {
+                        idx++;
+                        attempt();
+                        return;
+                    }
+                    try {
+                        const cropped = buildTightCircleCoinCanvas(img);
+                        const dataUrl = cropped.toDataURL('image/png', 1.0);
+                        applyLoadedCoinUrl(dataUrl);
+                    } catch (err) {
+                        applyLoadedCoinUrl(currentUrl);
+                    }
+                };
+                img.onerror = () => {
+                    idx++;
+                    attempt();
+                };
+                img.src = currentUrl;
+            }
+            attempt();
+        }
+
+        // ==========================================
+        // 2. ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP И СОСТОЯНИЯ
+        // ==========================================
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        let tgUser = { id: 'demo_user', first_name: 'YUKA Pioneer', username: 'yuka_miner' };
+
+        if (tg) {
+            try {
+                tg.ready();
+                tg.expand();
+                if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
+                if (typeof tg.setHeaderColor === 'function') tg.setHeaderColor('#0b0b0c');
+                if (typeof tg.setBackgroundColor === 'function') tg.setBackgroundColor('#060607');
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    tgUser = { ...tgUser, ...tg.initDataUnsafe.user };
+                }
+            } catch (e) {}
+        }
+
+        const MORSE_WORD = 'YUKA';
+        const MORSE_MAP = { 'Y': '-.--', 'U': '..-', 'K': '-.-', 'A': '.-' };
+
+        let state = {
+            balance: 0,
+            totalEarned: 0,
+            totalTaps: 0,
+            energy: 1000,
+            maxEnergy: 1000,
+            tapPower: 1,
+            passivePerHour: 0,
+            prestigeLevel: 0,
+            activeSkin: 'chrome',
+            ownedSkins: ['chrome'],
+            upgrades: {},
+            completedTasks: [],
+            unlockedAchievements: [],
+            friendsCount: 0,
+            refBonusClaimed: false,
+            dailyStreak: 0,
+            lastDailyDate: '',
+            morseClaimedDate: '',
+            fullEnergyLeft: 3,
+            turboLeft: 3,
+            turboUntil: 0,
+            squadId: null,
+            squadTreasury: 0,
+            squadBuffs: { tap: 0, passive: 0, energy: 0 },
+            records: { flappy: 0, worm: 0, blitz: 0, crash: 1.0 },
+            lastSavedAt: Date.now()
+        };
+
+        const LEAGUES = [
+            { name: 'Хром I', min: 0 },
+            { name: 'Хром II', min: 5000 },
+            { name: 'Титан I', min: 25000 },
+            { name: 'Титан II', min: 100000 },
+            { name: 'Платина', min: 500000 },
+            { name: 'Обсидиан', min: 2500000 },
+            { name: 'Легенда $YUKA', min: 10000000 }
+        ];
+
+        const MINING_UPGRADES = [
+            { id: 'gpu_rig', name: 'Хром-риг v1', desc: 'Базовый облачный узел', baseCost: 150, baseProfit: 60, icon: 'fa-microchip' },
+            { id: 'asic_node', name: 'Титан ASIC', desc: 'Выделенный вычислительный блок', baseCost: 850, baseProfit: 320, icon: 'fa-server' },
+            { id: 'quantum_core', name: 'Квантовое ядро', desc: 'Сверхбыстрая валидация блоков', baseCost: 4200, baseProfit: 1450, icon: 'fa-atom' },
+            { id: 'orbital_sat', name: 'Орбитальный узел', desc: 'Спутниковый ретранслятор $YUKA', baseCost: 18000, baseProfit: 5800, icon: 'fa-satellite' },
+            { id: 'ai_cluster', name: 'Нейро-кластер', desc: 'Автономный ИИ-алгоритм майнинга', baseCost: 75000, baseProfit: 22000, icon: 'fa-brain' }
+        ];
+
+        const CLICK_UPGRADES = [
+            { id: 'multitap', name: 'Мультитап', desc: '+1 к силе каждого нажатия', baseCost: 100, icon: 'fa-hand-pointer' },
+            { id: 'energy_cap', name: 'Ёмкость батареи', desc: '+500 к максимальной энергии', baseCost: 150, icon: 'fa-battery-three-quarters' },
+            { id: 'recharge_spd', name: 'Турбо-зарядка', desc: 'Ускоряет восстановление энергии', baseCost: 300, icon: 'fa-bolt' }
+        ];
+
+        const SKINS = [
+            { id: 'chrome', name: 'Чистый Хром', price: 0, filter: 'none' },
+            { id: 'obsidian', name: 'Тёмный Обсидиан', price: 5000, filter: 'contrast(1.25) brightness(0.82)' },
+            { id: 'platinum', name: 'Светлая Платина', price: 25000, filter: 'brightness(1.16) contrast(1.08)' },
+            { id: 'cyber', name: 'Хром-Неон', price: 100000, filter: 'hue-rotate(175deg) saturate(1.35)' }
+        ];
+
+        const TASKS = [
+            { id: 't_taps_100', title: 'Первые 100 тапов', reward: 1000, check: () => state.totalTaps >= 100, progress: () => `${Math.min(state.totalTaps, 100)}/100` },
+            { id: 't_upg_3', title: 'Улучши 3 модуля майнинга', reward: 2500, check: () => Object.values(state.upgrades).reduce((a, b) => a + b, 0) >= 3, progress: () => `${Math.min(Object.values(state.upgrades).reduce((a, b) => a + b, 0), 3)}/3` },
+            { id: 't_flappy_5', title: 'Набери 5 очков в YUKA Flappy', reward: 5000, check: () => state.records.flappy >= 5, progress: () => `${Math.min(state.records.flappy, 5)}/5` },
+            { id: 't_worm_30', title: 'Набери 30 очков в YUKA Worm', reward: 7500, check: () => state.records.worm >= 30, progress: () => `${Math.min(state.records.worm, 30)}/30` },
+            { id: 't_squad', title: 'Вступи в любой сквад', reward: 5000, check: () => Boolean(state.squadId), progress: () => state.squadId ? 'Готово' : '0/1' }
+        ];
+
+        const ACHIEVEMENTS = [
+            { id: 'a_1k', title: 'Новичок', desc: 'Накопи 1 000 $YUKA', icon: 'fa-seedling', check: () => state.totalEarned >= 1000 },
+            { id: 'a_50k', title: 'Магнат', desc: 'Накопи 50 000 $YUKA', icon: 'fa-gem', check: () => state.totalEarned >= 50000 },
+            { id: 'a_1k_taps', title: 'Спринтер', desc: 'Сделай 1 000 тапов', icon: 'fa-fingerprint', check: () => state.totalTaps >= 1000 },
+            { id: 'a_prestige', title: 'Титановый сплав', desc: 'Выполни Переплавку', icon: 'fa-fire-flame-curved', check: () => state.prestigeLevel >= 1 }
+        ];
+
+        const SQUADS = [
+            { id: 'sq_chrome', name: 'CHROME SYNDICATE', tag: 'CHRM', members: 1420, basePower: 4850000 },
+            { id: 'sq_titan', name: 'TITAN WHALES', tag: 'TITN', members: 980, basePower: 3920000 },
+            { id: 'sq_yuka', name: 'YUKA CORE', tag: 'YUKA', members: 2150, basePower: 6120000 }
+        ];
+
+        // Опциональный URL бэкенда для глобальной синхронизации реальных игроков Telegram (если подключён сервер)
+        const LEADERBOARD_API_URL = '';
+        let realLeaderboardPlayers = [];
+
+        // ==========================================
+        // 3. СОХРАНЕНИЕ И ЗАГРУЗКА (LOCAL + TELEGRAM CLOUD + РЕАЛЬНЫЕ ПРОФИЛИ)
+        // ==========================================
+        function syncRealTelegramProfile() {
+            const isRealTgUser = Boolean(tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id);
+            const uid = String(tgUser.id || 'local_player');
+            const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username || 'Telegram Майнер';
+            const handle = tgUser.username ? `@${tgUser.username}` : '';
+
+            let registry = [];
+            try {
+                const rawReg = localStorage.getItem('yuka_real_tg_profiles_v1');
+                if (rawReg) registry = JSON.parse(rawReg);
+                if (!Array.isArray(registry)) registry = [];
+            } catch (e) {
+                registry = [];
+            }
+
+            const entry = {
+                id: uid,
+                name: displayName,
+                username: handle,
+                score: Math.floor(state.totalEarned || 0),
+                league: getCurrentLeague().current.name,
+                prestige: state.prestigeLevel || 0,
+                isTelegramVerified: isRealTgUser,
+                updatedAt: Date.now()
+            };
+
+            const existingIdx = registry.findIndex(p => String(p.id) === uid);
+            if (existingIdx >= 0) {
+                registry[existingIdx] = { ...registry[existingIdx], ...entry };
+            } else {
+                registry.push(entry);
+            }
+
+            registry.sort((a, b) => b.score - a.score);
+            realLeaderboardPlayers = registry;
+
+            try {
+                localStorage.setItem('yuka_real_tg_profiles_v1', JSON.stringify(registry));
+            } catch (e) {}
+
+            if (LEADERBOARD_API_URL && isRealTgUser) {
+                fetch(LEADERBOARD_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData || '', profile: entry })
+                })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && Array.isArray(data.players)) {
+                        realLeaderboardPlayers = data.players;
+                        if (activeTab === 'top' && activeTopSub === 'players') renderTopSection();
+                    }
+                })
+                .catch(() => {});
+            }
+        }
+
+        function saveGameState() {
+            state.lastSavedAt = Date.now();
+            syncRealTelegramProfile();
+            const serialized = JSON.stringify(state);
+            try {
+                localStorage.setItem('yuka_clicker_save_v3', serialized);
+            } catch (e) {}
+            try {
+                if (tg && tg.CloudStorage && typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast('6.9')) {
+                    tg.CloudStorage.setItem('yuka_state', serialized);
+                }
+            } catch (e) {}
+        }
+
+        function loadGameState(onComplete) {
+            try {
+                const raw = localStorage.getItem('yuka_clicker_save_v3');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    state = { ...state, ...parsed };
+                }
+            } catch (e) {}
+
+            try {
+                const startParam = tg && tg.initDataUnsafe ? tg.initDataUnsafe.start_param : '';
+                if (startParam && startParam.startsWith('ref_') && !state.refBonusClaimed) {
+                    state.refBonusClaimed = true;
+                    state.balance += 10000;
+                    state.totalEarned += 10000;
+                    showToast('Бонус по приглашению: +10 000 $YUKA!', 'fa-gift');
+                }
+            } catch (e) {}
+
+            try {
+                if (tg && tg.CloudStorage && typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast('6.9')) {
+                    tg.CloudStorage.getItem('yuka_state', (err, cloudRaw) => {
+                        if (!err && cloudRaw) {
+                            try {
+                                const cloudParsed = JSON.parse(cloudRaw);
+                                if ((cloudParsed.totalEarned || 0) > (state.totalEarned || 0)) {
+                                    state = { ...state, ...cloudParsed };
+                                }
+                            } catch (parseErr) {}
+                        }
+                        if (typeof onComplete === 'function') onComplete();
+                    });
+                    return;
+                }
+            } catch (e) {}
+
+            if (typeof onComplete === 'function') onComplete();
+        }
+
+        // ==========================================
+        // 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ФОРМАТИРОВАНИЕ
+        // ==========================================
+        function fmt(num) {
+            return Math.floor(num).toLocaleString('ru-RU');
+        }
+
+        function showToast(text, icon = 'fa-circle-check') {
+            const box = document.getElementById('toast-box');
+            document.getElementById('toast-text').textContent = text;
+            document.getElementById('toast-icon').className = `fa-solid ${icon} text-emerald-400 text-xs`;
+            box.classList.remove('opacity-0', '-translate-y-2');
+            box.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                box.classList.add('opacity-0', '-translate-y-2');
+                box.classList.remove('opacity-100', 'translate-y-0');
+            }, 2400);
+        }
+
+        function haptic(type = 'light') {
+            try {
+                if (tg && tg.HapticFeedback) {
+                    if (type === 'success' || type === 'error') tg.HapticFeedback.notificationOccurred(type);
+                    else tg.HapticFeedback.impactOccurred(type);
+                }
+            } catch (e) {}
+        }
+
+        function getEffectiveTapPower() {
+            const multLvl = state.upgrades.multitap || 0;
+            const base = 1 + multLvl;
+            const prestigeMult = 1 + state.prestigeLevel * 0.25;
+            const squadMult = 1 + (state.squadBuffs.tap || 0) * 0.10;
+            const turboMult = Date.now() < state.turboUntil ? 3 : 1;
+            return Math.max(1, Math.floor(base * prestigeMult * squadMult * turboMult));
+        }
+
+        function getEffectivePassiveRate() {
+            let sum = 0;
+            MINING_UPGRADES.forEach(u => {
+                const lvl = state.upgrades[u.id] || 0;
+                if (lvl > 0) sum += u.baseProfit * lvl;
+            });
+            const prestigeMult = 1 + state.prestigeLevel * 0.25;
+            const squadMult = 1 + (state.squadBuffs.passive || 0) * 0.15;
+            return Math.floor(sum * prestigeMult * squadMult);
+        }
+
+        function getCurrentLeague() {
+            let current = LEAGUES[0];
+            let next = LEAGUES[1] || null;
+            for (let i = 0; i < LEAGUES.length; i++) {
+                if (state.totalEarned >= LEAGUES[i].min) {
+                    current = LEAGUES[i];
+                    next = LEAGUES[i + 1] || null;
+                }
+            }
+            return { current, next };
+        }
+
+        // ==========================================
+        // 5. КЛИКЕР И ЕЖЕДНЕВНЫЙ ШИФР МОРЗЕ
+        // ==========================================
+        let morseActive = false;
+        let morseLettersDone = 0;
+        let morseCurrentSeq = '';
+        let pointerDownTime = 0;
+        let morseLetterTimer = null;
+
+        function toggleMorseMode() {
+            const today = new Date().toISOString().slice(0, 10);
+            if (state.morseClaimedDate === today) {
+                showToast('Сегодняшний шифр уже разгадан!', 'fa-check');
+                return;
+            }
+            morseActive = !morseActive;
+            morseLettersDone = 0;
+            morseCurrentSeq = '';
+            const panel = document.getElementById('morse-panel');
+            const btnText = document.getElementById('morse-btn-text');
+            if (morseActive) {
+                panel.classList.remove('hidden');
+                btnText.textContent = 'Режим Морзе: короткий (•) / долгий (—)';
+                renderMorseSlots();
+            } else {
+                panel.classList.add('hidden');
+                btnText.textContent = 'Шифр дня: +50 000 $YUKA';
+            }
+        }
+
+        function renderMorseSlots() {
+            const box = document.getElementById('morse-slots');
+            box.innerHTML = MORSE_WORD.split('').map((ch, i) => {
+                const revealed = i < morseLettersDone;
+                return `<span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black border ${revealed ? 'bg-white text-black border-white' : 'bg-black/50 text-zinc-500 border-white/10'}">${revealed ? ch : '?'}</span>`;
+            }).join('');
+            document.getElementById('morse-buffer').textContent = morseCurrentSeq || '...';
+        }
+
+        function handleCoinDown(e) {
+            pointerDownTime = performance.now();
+            const stage = document.getElementById('coin-btn');
+            stage.style.transform = 'scale(0.93)';
+        }
+
+        function handleCoinUp(e) {
+            const stage = document.getElementById('coin-btn');
+            stage.style.transform = 'scale(1)';
+            const holdMs = performance.now() - pointerDownTime;
+
+            // Обработка Морзе
+            if (morseActive) {
+                const symbol = holdMs >= 240 ? '-' : '.';
+                morseCurrentSeq += symbol;
+                renderMorseSlots();
+                haptic(symbol === '-' ? 'medium' : 'light');
+
+                clearTimeout(morseLetterTimer);
+                morseLetterTimer = setTimeout(() => {
+                    const targetChar = MORSE_WORD[morseLettersDone];
+                    const expectedSeq = MORSE_MAP[targetChar];
+                    if (morseCurrentSeq === expectedSeq) {
+                        morseLettersDone++;
+                        morseCurrentSeq = '';
+                        haptic('success');
+                        if (morseLettersDone >= MORSE_WORD.length) {
+                            state.morseClaimedDate = new Date().toISOString().slice(0, 10);
+                            state.balance += 50000;
+                            state.totalEarned += 50000;
+                            morseActive = false;
+                            document.getElementById('morse-panel').classList.add('hidden');
+                            document.getElementById('morse-btn-text').textContent = 'Шифр дня получен ✓';
+                            showToast('Шифр YUKA разгадан! +50 000 $YUKA');
+                            saveGameState();
+                        }
+                    } else {
+                        morseCurrentSeq = '';
+                        haptic('error');
+                    }
+                    renderMorseSlots();
+                    updateUI();
+                }, 750);
+                return;
+            }
+
+            // Обычный тап
+            const gain = getEffectiveTapPower();
+            if (state.energy < 1) {
+                showToast('Энергия закончилась, подожди зарядки', 'fa-bolt');
+                return;
+            }
+            state.energy = Math.max(0, state.energy - 1);
+            state.balance += gain;
+            state.totalEarned += gain;
+            state.totalTaps += 1;
+            haptic('light');
+
+            // Всплывающая цифра
+            const x = e.clientX || window.innerWidth / 2;
+            const y = e.clientY || window.innerHeight / 2;
+            const el = document.createElement('div');
+            el.className = 'float-tap';
+            el.textContent = `+${fmt(gain)}`;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 850);
+
+            updateUI();
+        }
+
+        function activateFullEnergy() {
+            if (state.fullEnergyLeft <= 0) return;
+            state.fullEnergyLeft--;
+            state.energy = state.maxEnergy;
+            haptic('success');
+            showToast('Энергия полностью восстановлена!', 'fa-battery-full');
+            updateUI();
+        }
+
+        function activateTurbo() {
+            if (state.turboLeft <= 0) return;
+            state.turboLeft--;
+            state.turboUntil = Date.now() + 20000;
+            haptic('success');
+            showToast('Хром-Турбо ×3 активирован на 20 сек!', 'fa-fire');
+            updateUI();
+        }
+
+        // ==========================================
+        // 6. НАВИГАЦИЯ И РЕНДЕР ВКЛАДОК
+        // ==========================================
+        let activeTab = 'clicker';
+        let activeUpgradeSub = 'mining';
+        let activeTopSub = 'players';
+
+        function switchTab(tab) {
+            activeTab = tab;
+            ['clicker', 'upgrades', 'games', 'tasks', 'top', 'project'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+                document.getElementById(`nav-${t}`).classList.toggle('active', t === tab);
+            });
+            if (tab === 'upgrades') renderUpgrades();
+            if (tab === 'tasks') renderTasksAndAchievements();
+            if (tab === 'top') renderTopSection();
+            updateUI();
+        }
+
+        function switchUpgradeSubtab(sub) {
+            activeUpgradeSub = sub;
+            ['mining', 'click', 'skins', 'prestige'].forEach(s => {
+                const btn = document.getElementById(`sub-${s}`);
+                btn.className = s === sub
+                    ? 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/15 text-white'
+                    : 'flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400';
+            });
+            renderUpgrades();
+        }
+
+        function renderUpgrades() {
+            const box = document.getElementById('upgrades-list');
+            if (activeUpgradeSub === 'mining') {
+                box.innerHTML = MINING_UPGRADES.map(u => {
+                    const lvl = state.upgrades[u.id] || 0;
+                    const cost = Math.floor(u.baseCost * Math.pow(1.45, lvl));
+                    const canBuy = state.balance >= cost;
+                    return `
+                    <div class="chrome-panel rounded-2xl p-3 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
+                                <i class="fa-solid ${u.icon}"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${u.name} <span class="text-zinc-400">Ур.${lvl}</span></div>
+                                <div class="text-[10px] text-zinc-400">${u.desc}</div>
+                                <div class="text-[11px] font-bold text-emerald-400 mt-0.5">+${fmt(u.baseProfit)} / час</div>
+                            </div>
+                        </div>
+                        <button onclick="buyMiningUpgrade('${u.id}')" ${canBuy ? '' : 'disabled'} class="chrome-btn px-3 py-2 rounded-xl text-xs shrink-0">
+                            $${fmt(cost)}
+                        </button>
+                    </div>`;
+                }).join('');
+            } else if (activeUpgradeSub === 'click') {
+                box.innerHTML = CLICK_UPGRADES.map(u => {
+                    const lvl = state.upgrades[u.id] || 0;
+                    const cost = Math.floor(u.baseCost * Math.pow(1.65, lvl));
+                    const canBuy = state.balance >= cost;
+                    return `
+                    <div class="chrome-panel rounded-2xl p-3 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
+                                <i class="fa-solid ${u.icon}"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${u.name} <span class="text-zinc-400">Ур.${lvl}</span></div>
+                                <div class="text-[10px] text-zinc-400">${u.desc}</div>
+                            </div>
+                        </div>
+                        <button onclick="buyClickUpgrade('${u.id}')" ${canBuy ? '' : 'disabled'} class="chrome-btn px-3 py-2 rounded-xl text-xs shrink-0">
+                            $${fmt(cost)}
+                        </button>
+                    </div>`;
+                }).join('');
+            } else if (activeUpgradeSub === 'skins') {
+                box.innerHTML = `<div class="grid grid-cols-2 gap-2.5">` + SKINS.map(s => {
+                    const owned = state.ownedSkins.includes(s.id);
+                    const active = state.activeSkin === s.id;
+                    return `
+                    <div class="chrome-panel rounded-2xl p-3 flex flex-col items-center text-center">
+                        <div class="w-16 h-16 rounded-full overflow-hidden mb-2 shadow-lg" style="filter: ${s.filter}">
+                            ${buildCoinImgMarkup('w-full h-full')}
+                        </div>
+                        <div class="text-xs font-extrabold text-white">${s.name}</div>
+                        <button onclick="selectOrBuySkin('${s.id}')" class="mt-2.5 w-full py-2 rounded-xl text-xs font-bold ${active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'chrome-btn'}">
+                            ${active ? 'Выбран' : owned ? 'Надеть' : `$${fmt(s.price)}`}
+                        </button>
+                    </div>`;
+                }).join('') + `</div>`;
+            } else if (activeUpgradeSub === 'prestige') {
+                const req = 250000 * Math.pow(2, state.prestigeLevel);
+                const canPrestige = state.balance >= req;
+                box.innerHTML = `
+                <div class="chrome-panel rounded-2xl p-4 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mx-auto text-white text-xl mb-2">
+                        <i class="fa-solid fa-fire-flame-curved"></i>
+                    </div>
+                    <h3 class="text-sm font-black text-white">Титановая Переплавка (Ур. ${state.prestigeLevel})</h3>
+                    <p class="text-xs text-zinc-400 mt-1">Сбрасывает текущий баланс и фермы, но навсегда даёт <span class="text-white font-bold">+25% ко всему доходу</span>.</p>
+                    <div class="my-3 py-2 px-3 rounded-xl bg-black/50 border border-white/10 text-xs font-bold text-zinc-300">
+                        Требуется: $${fmt(req)}
+                    </div>
+                    <button onclick="doPrestige()" ${canPrestige ? '' : 'disabled'} class="chrome-btn w-full py-3 rounded-xl text-xs">
+                        Выполнить переплавку
+                    </button>
+                </div>`;
+            }
+        }
+
+        function buyMiningUpgrade(id) {
+            const u = MINING_UPGRADES.find(x => x.id === id);
+            const lvl = state.upgrades[id] || 0;
+            const cost = Math.floor(u.baseCost * Math.pow(1.45, lvl));
+            if (state.balance < cost) return;
+            state.balance -= cost;
+            state.upgrades[id] = lvl + 1;
+            haptic('medium');
+            renderUpgrades();
+            updateUI();
+        }
+
+        function buyClickUpgrade(id) {
+            const u = CLICK_UPGRADES.find(x => x.id === id);
+            const lvl = state.upgrades[id] || 0;
+            const cost = Math.floor(u.baseCost * Math.pow(1.65, lvl));
+            if (state.balance < cost) return;
+            state.balance -= cost;
+            state.upgrades[id] = lvl + 1;
+            if (id === 'energy_cap') {
+                state.maxEnergy += 500;
+                state.energy = state.maxEnergy;
+            }
+            haptic('medium');
+            renderUpgrades();
+            updateUI();
+        }
+
+        function selectOrBuySkin(id) {
+            const skin = SKINS.find(s => s.id === id);
+            if (!skin) return;
+            if (!state.ownedSkins.includes(id)) {
+                if (state.balance < skin.price) {
+                    showToast('Недостаточно $YUKA для покупки скина', 'fa-lock');
+                    return;
+                }
+                state.balance -= skin.price;
+                state.ownedSkins.push(id);
+                showToast(`Скин «${skin.name}» разблокирован!`);
+            }
+            state.activeSkin = id;
+            const mainImg = document.getElementById('main-coin-img');
+            if (mainImg) mainImg.style.filter = skin.filter;
+            renderUpgrades();
+            updateUI();
+        }
+
+        function doPrestige() {
+            const req = 250000 * Math.pow(2, state.prestigeLevel);
+            if (state.balance < req) return;
+            state.prestigeLevel += 1;
+            state.balance = 0;
+            state.upgrades = {};
+            state.maxEnergy = 1000;
+            state.energy = 1000;
+            haptic('success');
+            showToast(`Переплавка завершена! Бонус +${state.prestigeLevel * 25}%`);
+            renderUpgrades();
+            updateUI();
+        }
+
+        // ==========================================
+        // 7. ЗАДАНИЯ, АЧИВКИ, ТОП И СКВАДЫ
+        // ==========================================
+        function renderTasksAndAchievements() {
+            document.getElementById('friends-count').textContent = `${state.friendsCount} друзей`;
+            document.getElementById('tasks-list').innerHTML = TASKS.map(t => {
+                const claimed = state.completedTasks.includes(t.id);
+                const ready = !claimed && t.check();
+                return `
+                <div class="chrome-panel rounded-2xl p-3 flex items-center justify-between gap-2">
+                    <div>
+                        <div class="text-xs font-extrabold text-white">${t.title}</div>
+                        <div class="text-[11px] text-zinc-400 mt-0.5">Награда: <span class="text-white font-bold">+$${fmt(t.reward)}</span> • ${t.progress()}</div>
+                    </div>
+                    <button onclick="claimTask('${t.id}')" ${ready ? '' : 'disabled'} class="${claimed ? 'bg-white/10 text-zinc-400' : 'chrome-btn'} px-3 py-2 rounded-xl text-xs font-bold shrink-0">
+                        ${claimed ? 'Получено' : ready ? 'Забрать' : 'В процессе'}
+                    </button>
+                </div>`;
+            }).join('');
+
+            document.getElementById('achievements-list').innerHTML = ACHIEVEMENTS.map(a => {
+                const unlocked = a.check();
+                return `
+                <div class="chrome-panel rounded-2xl p-3 ${unlocked ? 'border-white/25' : 'opacity-50'}">
+                    <i class="fa-solid ${a.icon} text-sm ${unlocked ? 'text-white' : 'text-zinc-500'}"></i>
+                    <div class="text-xs font-extrabold text-white mt-1.5">${a.title}</div>
+                    <div class="text-[10px] text-zinc-400 mt-0.5">${a.desc}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function claimTask(id) {
+            const t = TASKS.find(x => x.id === id);
+            if (!t || state.completedTasks.includes(id) || !t.check()) return;
+            state.completedTasks.push(id);
+            state.balance += t.reward;
+            state.totalEarned += t.reward;
+            haptic('success');
+            showToast(`Награда получена: +$${fmt(t.reward)}`);
+            renderTasksAndAchievements();
+            updateUI();
+        }
+
+        function shareInviteLink() {
+            const link = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/yuka_clicker_bot?startapp=ref_${tgUser.id}`)}&text=${encodeURIComponent('Майни $YUKA вместе со мной и забери бонус +10 000 монет!')}`;
+            if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(link);
+            else window.open(link, '_blank');
+        }
+
+        function copyInviteLink() {
+            const url = `https://t.me/yuka_clicker_bot?startapp=ref_${tgUser.id}`;
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showToast('Реферальная ссылка скопирована!');
+        }
+
+        function switchTopSubtab(sub) {
+            activeTopSub = sub;
+            ['players', 'squads'].forEach(s => {
+                document.getElementById(`sub-${s}`).className = s === sub
+                    ? 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-white/15 text-white'
+                    : 'flex-1 py-1.5 rounded-lg text-xs font-bold text-zinc-400';
+            });
+            renderTopSection();
+        }
+
+        function renderTopSection() {
+            const box = document.getElementById('top-content');
+            if (activeTopSub === 'players') {
+                syncRealTelegramProfile();
+                const currentUid = String(tgUser.id || 'local_player');
+                const list = [...realLeaderboardPlayers].sort((a, b) => b.score - a.score);
+
+                if (list.length === 0) {
+                    box.innerHTML = `
+                    <div class="chrome-panel rounded-2xl p-5 text-center">
+                        <div class="text-xs font-bold text-white">Пока нет активных игроков</div>
+                        <div class="text-[11px] text-zinc-400 mt-1">В таблице отображаются только реальные профили из Telegram.</div>
+                    </div>`;
+                    return;
+                }
+
+                box.innerHTML = `
+                <div class="chrome-panel rounded-2xl px-3.5 py-2.5 flex items-center justify-between text-[11px] text-zinc-400">
+                    <span>Только реальные профили Telegram</span>
+                    <span class="font-bold text-white">${list.length} в рейтинге</span>
+                </div>` + list.map((p, idx) => {
+                    const isMe = String(p.id) === currentUid;
+                    const initials = (p.name || 'Y')[0].toUpperCase();
+                    return `
+                    <div class="chrome-panel rounded-2xl p-3 flex items-center justify-between ${isMe ? 'border-white/30 bg-white/10' : ''}">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-6 text-center font-black text-xs text-zinc-300 shrink-0">#${idx + 1}</span>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-600 text-zinc-950 font-black text-xs flex items-center justify-center shrink-0">
+                                ${initials}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-extrabold text-white truncate">${p.name} ${isMe ? '(Вы)' : ''}</span>
+                                    ${p.isTelegramVerified ? '<i class="fa-brands fa-telegram text-sky-400 text-[11px]" title="Профиль Telegram"></i>' : ''}
+                                </div>
+                                <div class="text-[10px] text-zinc-400 truncate">${p.username ? `${p.username} • ` : ''}${p.league}</div>
+                            </div>
+                        </div>
+                        <div class="text-xs font-black text-white shrink-0 ml-2">$${fmt(p.score)}</div>
+                    </div>`;
+                }).join('');
+            } else {
+                const mySquad = SQUADS.find(s => s.id === state.squadId);
+                let html = '';
+                if (mySquad) {
+                    html += `
+                    <div class="chrome-panel rounded-2xl p-3.5 border-white/25">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] uppercase tracking-wider text-zinc-400">Ваш сквад</div>
+                                <div class="text-sm font-black text-white">${mySquad.name} [${mySquad.tag}]</div>
+                            </div>
+                            <button onclick="donateToSquad()" class="chrome-btn px-3 py-1.5 rounded-xl text-[11px]">Внести 10%</button>
+                        </div>
+                        <div class="mt-2 text-xs text-zinc-300">Казна клана: <span class="font-black text-white">$${fmt(state.squadTreasury)}</span></div>
+                        <div class="grid grid-cols-3 gap-1.5 mt-3">
+                            ${[
+                                { k: 'tap', name: 'Тап +10%', cost: 5000 },
+                                { k: 'passive', name: 'Майнинг +15%', cost: 8000 },
+                                { k: 'energy', name: 'Заряд +15%', cost: 6000 }
+                            ].map(b => {
+                                const lvl = state.squadBuffs[b.k] || 0;
+                                const price = b.cost * (lvl + 1);
+                                return `<button onclick="upgradeSquadBuff('${b.k}', ${price})" class="bg-black/45 border border-white/10 rounded-xl p-2 text-center active:scale-95">
+                                    <div class="text-[10px] font-bold text-white">${b.name}</div>
+                                    <div class="text-[9px] text-zinc-400">Ур.${lvl}/5 • $${fmt(price)}</div>
+                                </button>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+                }
+                html += SQUADS.map(s => `
+                <div class="chrome-panel rounded-2xl p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-extrabold text-white">${s.name} <span class="text-zinc-400">[${s.tag}]</span></div>
+                        <div class="text-[10px] text-zinc-400">${s.members} участников • Оборот $${fmt(s.basePower)}</div>
+                    </div>
+                    <button onclick="joinSquad('${s.id}')" class="${state.squadId === s.id ? 'bg-white/10 text-zinc-300' : 'chrome-btn'} px-3 py-1.5 rounded-xl text-xs font-bold">
+                        ${state.squadId === s.id ? 'Вы в клане' : 'Вступить'}
+                    </button>
+                </div>`).join('');
+                box.innerHTML = html;
+            }
+        }
+
+        function joinSquad(id) {
+            state.squadId = id;
+            haptic('success');
+            showToast('Вы вступили в сквад!');
+            renderTopSection();
+            updateUI();
+        }
+
+        function donateToSquad() {
+            const amount = Math.floor(state.balance * 0.1);
+            if (amount < 100) {
+                showToast('Минимум $100 для взноса в казну', 'fa-coins');
+                return;
+            }
+            state.balance -= amount;
+            state.squadTreasury += amount;
+            haptic('medium');
+            showToast(`Внесено $${fmt(amount)} в казну сквада!`);
+            renderTopSection();
+            updateUI();
+        }
+
+        function upgradeSquadBuff(key, cost) {
+            const lvl = state.squadBuffs[key] || 0;
+            if (lvl >= 5) return;
+            if (state.squadTreasury < cost) {
+                showToast('Недостаточно средств в казне сквада', 'fa-vault');
+                return;
+            }
+            state.squadTreasury -= cost;
+            state.squadBuffs[key] = lvl + 1;
+            haptic('success');
+            showToast('Клановый бафф улучшен!');
+            renderTopSection();
+            updateUI();
+        }
+
+        // ==========================================
+        // 8. ЕЖЕДНЕВНЫЙ БОНУС, ОФЛАЙН-ДОХОД И ПРОФИЛЬ
+        // ==========================================
+        function openDailyModal() {
+            const today = new Date().toISOString().slice(0, 10);
+            const claimedToday = state.lastDailyDate === today;
+            const grid = document.getElementById('daily-grid');
+            grid.innerHTML = [1, 2, 3, 4, 5, 6, 7].map(day => {
+                const reward = day * 1500;
+                const done = day <= state.dailyStreak;
+                return `
+                <div class="rounded-xl p-2 text-center border ${done ? 'bg-white/15 border-white/30' : 'bg-black/40 border-white/10'}">
+                    <div class="text-[10px] text-zinc-400">День ${day}</div>
+                    <div class="text-xs font-black text-white mt-0.5">$${fmt(reward)}</div>
+                </div>`;
+            }).join('');
+            const btn = document.getElementById('claim-daily-btn');
+            btn.disabled = claimedToday;
+            btn.textContent = claimedToday ? 'Сегодня уже получено' : 'Забрать награду';
+            document.getElementById('daily-modal').classList.remove('hidden');
+        }
+
+        function claimDailyReward() {
+            const today = new Date().toISOString().slice(0, 10);
+            if (state.lastDailyDate === today) return;
+            state.dailyStreak = (state.dailyStreak % 7) + 1;
+            state.lastDailyDate = today;
+            const reward = state.dailyStreak * 1500;
+            state.balance += reward;
+            state.totalEarned += reward;
+            haptic('success');
+            showToast(`Ежедневный бонус: +$${fmt(reward)}`);
+            document.getElementById('daily-modal').classList.add('hidden');
+            updateUI();
+        }
+
+        let pendingOfflineReward = 0;
+        let offlineChallengeTaps = 0;
+        let offlineChallengeTimer = null;
+
+        function checkOfflineEarnings() {
+            const rate = getEffectivePassiveRate();
+            if (rate <= 0 || !state.lastSavedAt) return;
+            const elapsedSec = Math.min(10800, Math.floor((Date.now() - state.lastSavedAt) / 1000));
+            if (elapsedSec < 60) return;
+            pendingOfflineReward = Math.floor((rate / 3600) * elapsedSec);
+            if (pendingOfflineReward < 10) return;
+            document.getElementById('offline-amount').textContent = `+$${fmt(pendingOfflineReward)}`;
+            document.getElementById('offline-modal').classList.remove('hidden');
+        }
+
+        function claimOffline(mult = 1) {
+            clearInterval(offlineChallengeTimer);
+            const total = pendingOfflineReward * mult;
+            state.balance += total;
+            state.totalEarned += total;
+            pendingOfflineReward = 0;
+            document.getElementById('offline-modal').classList.add('hidden');
+            haptic('success');
+            showToast(`Получено +$${fmt(total)} офлайн-дохода!`);
+            updateUI();
+        }
+
+        function startOfflineChallenge() {
+            offlineChallengeTaps = 0;
+            document.getElementById('offline-actions').classList.add('hidden');
+            document.getElementById('offline-challenge-box').classList.remove('hidden');
+            let left = 5.0;
+            offlineChallengeTimer = setInterval(() => {
+                left -= 0.1;
+                document.getElementById('offline-timer').textContent = Math.max(0, left).toFixed(1);
+                if (left <= 0) {
+                    clearInterval(offlineChallengeTimer);
+                    claimOffline(1);
+                }
+            }, 100);
+        }
+
+        function tapOfflineChallenge() {
+            offlineChallengeTaps++;
+            document.getElementById('offline-taps').textContent = offlineChallengeTaps;
+            haptic('light');
+            if (offlineChallengeTaps >= 15) {
+                clearInterval(offlineChallengeTimer);
+                claimOffline(2);
+            }
+        }
+
+        function openProfileModal() {
+            const sq = SQUADS.find(s => s.id === state.squadId);
+            document.getElementById('profile-stats-body').innerHTML = `
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Игрок</span><span class="font-bold text-white">${tgUser.first_name}</span></div>
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Всего заработано</span><span class="font-bold text-white">$${fmt(state.totalEarned)}</span></div>
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Всего нажатий</span><span class="font-bold text-white">${fmt(state.totalTaps)}</span></div>
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Сквад</span><span class="font-bold text-white">${sq ? sq.name : 'Не выбран'}</span></div>
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Рекорд YUKA Flappy</span><span class="font-bold text-white">${state.records.flappy}</span></div>
+                <div class="flex justify-between py-2 border-b border-white/10"><span class="text-zinc-400">Рекорд YUKA Worm</span><span class="font-bold text-white">${state.records.worm}</span></div>
+                <div class="flex justify-between py-2"><span class="text-zinc-400">Рекорд YUKA Блиц</span><span class="font-bold text-white">${state.records.blitz}</span></div>
+            `;
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 9. ВСЕ 6 МИНИ-ИГР (FLAPPY, WORM, BLITZ, SAFE, SLOTS, CRASH)
+        // ==========================================
+        let activeGameCleanup = null;
+
+        function closeMiniGame() {
+            if (typeof activeGameCleanup === 'function') {
+                activeGameCleanup();
+                activeGameCleanup = null;
+            }
+            document.getElementById('minigame-modal').classList.add('hidden');
+            updateUI();
+        }
+
+        function openMiniGame(type) {
+            if (typeof activeGameCleanup === 'function') {
+                activeGameCleanup();
+                activeGameCleanup = null;
+            }
+            const modal = document.getElementById('minigame-modal');
+            const title = document.getElementById('mg-title');
+            const body = document.getElementById('mg-body');
+            modal.classList.remove('hidden');
+
+            try {
+                if (type === 'flappy') startFlappyGame(title, body);
+                else if (type === 'worm') startWormGame(title, body);
+                else if (type === 'blitz') startBlitzGame(title, body);
+                else if (type === 'safe') startSafeGame(title, body);
+                else if (type === 'slots') startSlotsGame(title, body);
+                else if (type === 'crash') startCrashGame(title, body);
+            } catch (err) {
+                body.innerHTML = `<div class="text-center py-6 text-xs text-zinc-300">Не удалось запустить игру. Попробуй снова.</div>`;
+            }
+        }
+
+        // --- 1) YUKA FLAPPY (Улучшенный 3D-маскот с ушами и сбором монет) ---
+        function startFlappyGame(title, body) {
+            title.textContent = 'YUKA Flappy';
+            body.innerHTML = `
+                <div class="relative rounded-2xl overflow-hidden border border-white/15 bg-zinc-950">
+                    <canvas id="flappy-canvas" class="w-full h-80 block"></canvas>
+                    <div id="flappy-overlay" class="absolute inset-0 bg-black/65 flex flex-col items-center justify-center p-4 text-center">
+                        <div class="text-sm font-black text-white mb-1">Управляй маскотом $YUKA</div>
+                        <div class="text-[11px] text-zinc-300 mb-4">Нажимай на экран для взлёта и собирай монеты в пролётах</div>
+                        <button id="flappy-start-btn" class="chrome-btn px-6 py-2.5 rounded-xl text-xs">Взлететь</button>
+                    </div>
+                </div>
+            `;
+            const canvas = document.getElementById('flappy-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 360;
+            canvas.height = 320;
+
+            let birdY = 150, birdVy = 0, pipes = [], coins = [], score = 0, running = false, rafId = null;
+
+            function drawMascot(x, y, vy) {
+                ctx.save();
+                ctx.translate(x, y);
+                const tilt = Math.max(-0.42, Math.min(0.55, vy * 0.065));
+                ctx.rotate(tilt);
+
+                // Левое ухо
+                ctx.save();
+                ctx.translate(-8, -15);
+                ctx.rotate(-0.22);
+                const earGradL = ctx.createLinearGradient(-5, -16, 5, 4);
+                earGradL.addColorStop(0, '#ffffff');
+                earGradL.addColorStop(1, '#b8bbc2');
+                ctx.fillStyle = earGradL;
+                ctx.beginPath();
+                ctx.ellipse(0, -6, 5.5, 13, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#52525b';
+                ctx.beginPath();
+                ctx.ellipse(0, -5, 2.4, 7.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Правое фирменное изогнутое ухо
+                ctx.save();
+                ctx.translate(8, -14);
+                ctx.rotate(0.32);
+                const earGradR = ctx.createLinearGradient(-5, -15, 6, 4);
+                earGradR.addColorStop(0, '#f4f4f6');
+                earGradR.addColorStop(1, '#9ca3af');
+                ctx.fillStyle = earGradR;
+                ctx.beginPath();
+                ctx.ellipse(1, -5, 5.5, 12, 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Ошейник
+                ctx.fillStyle = '#27272a';
+                ctx.beginPath();
+                ctx.roundRect(-11, 11, 22, 5, 2.5);
+                ctx.fill();
+                ctx.fillStyle = '#e4e4e7';
+                ctx.beginPath();
+                ctx.arc(0, 15, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Объёмная 3D-голова
+                const headGrad = ctx.createRadialGradient(-5, -6, 3, 0, 0, 18);
+                headGrad.addColorStop(0, '#ffffff');
+                headGrad.addColorStop(0.65, '#e4e4e7');
+                headGrad.addColorStop(1, '#9ca3af');
+                ctx.fillStyle = headGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Глаза с двойными бликами
+                [[-4.5, -2], [5.5, -2]].forEach(([ex, ey]) => {
+                    ctx.fillStyle = '#09090b';
+                    ctx.beginPath();
+                    ctx.ellipse(ex, ey, 3.1, 3.8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(ex - 1, ey - 1.3, 1.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(ex + 1, ey + 1, 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Носик
+                ctx.fillStyle = '#18181b';
+                ctx.beginPath();
+                ctx.ellipse(1.5, 3.5, 2.4, 1.7, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            function drawFrame() {
+                ctx.fillStyle = '#09090b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Колонны
+                pipes.forEach(p => {
+                    const grad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+                    grad.addColorStop(0, '#3f3f46');
+                    grad.addColorStop(0.5, '#a1a1aa');
+                    grad.addColorStop(1, '#27272a');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(p.x, 0, p.w, p.top);
+                    ctx.fillRect(p.x, p.top + p.gap, p.w, canvas.height - (p.top + p.gap));
+                });
+
+                // Монеты в пролётах
+                coins.forEach(c => {
+                    if (c.collected) return;
+                    if (customCoinImgObj) {
+                        ctx.drawImage(customCoinImgObj, c.x - 11, c.y - 11, 22, 22);
+                    } else {
+                        ctx.fillStyle = '#e4e4e7';
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, 9, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                drawMascot(72, birdY, birdVy);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '900 20px Inter, sans-serif';
+                ctx.fillText(`${score}`, 16, 30);
+            }
+
+            function loop() {
+                if (!running) return;
+                birdVy += 0.36;
+                birdY += birdVy;
+
+                if (pipes.length === 0 || pipes[pipes.length - 1].x < 195) {
+                    const top = 40 + Math.random() * 135;
+                    const gap = 108;
+                    pipes.push({ x: canvas.width + 10, w: 42, top, gap, passed: false });
+                    coins.push({ x: canvas.width + 31, y: top + gap / 2, collected: false });
+                }
+
+                pipes.forEach(p => {
+                    p.x -= 2.4;
+                    if (!p.passed && p.x + p.w < 72) {
+                        p.passed = true;
+                        score++;
+                    }
+                    if (72 + 12 > p.x && 72 - 12 < p.x + p.w && (birdY - 12 < p.top || birdY + 12 > p.top + p.gap)) {
+                        endFlappy();
+                    }
+                });
+
+                coins.forEach(c => {
+                    c.x -= 2.4;
+                    if (!c.collected && Math.hypot(72 - c.x, birdY - c.y) < 22) {
+                        c.collected = true;
+                        score += 2;
+                        haptic('light');
+                    }
+                });
+
+                pipes = pipes.filter(p => p.x + p.w > -20);
+                coins = coins.filter(c => c.x > -20);
+
+                if (birdY < 10 || birdY > canvas.height - 10) endFlappy();
+
+                drawFrame();
+                if (running) rafId = requestAnimationFrame(loop);
+            }
+
+            function endFlappy() {
+                running = false;
+                cancelAnimationFrame(rafId);
+                const reward = score * 250;
+                if (score > state.records.flappy) state.records.flappy = score;
+                state.balance += reward;
+                state.totalEarned += reward;
+                haptic('error');
+                const ov = document.getElementById('flappy-overlay');
+                ov.classList.remove('hidden');
+                ov.innerHTML = `
+                    <div class="text-base font-black text-white">Раунд окончен!</div>
+                    <div class="text-xs text-zinc-300 mt-1">Счёт: <span class="font-bold text-white">${score}</span> • Награда: <span class="text-emerald-400 font-bold">+$${fmt(reward)}</span></div>
+                    <button id="flappy-restart-btn" class="chrome-btn px-6 py-2.5 rounded-xl text-xs mt-4">Играть ещё</button>
+                `;
+                document.getElementById('flappy-restart-btn').onclick = resetAndRun;
+            }
+
+            function resetAndRun() {
+                birdY = 150;
+                birdVy = -4.5;
+                pipes = [];
+                coins = [];
+                score = 0;
+                running = true;
+                document.getElementById('flappy-overlay').classList.add('hidden');
+                loop();
+            }
+
+            canvas.onpointerdown = () => {
+                if (running) {
+                    birdVy = -5.6;
+                    haptic('light');
+                }
+            };
+            document.getElementById('flappy-start-btn').onclick = resetAndRun;
+            drawFrame();
+            activeGameCleanup = () => { running = false; cancelAnimationFrame(rafId); };
+        }
+
+        // --- 2) YUKA WORM (Разноцветные враги, глаза, взаимные столкновения, крупный масштаб) ---
+        function startWormGame(title, body) {
+            title.textContent = 'YUKA Worm Arena';
+            body.innerHTML = `
+                <div class="relative rounded-2xl overflow-hidden border border-white/15 bg-zinc-950">
+                    <canvas id="worm-canvas" class="w-full h-96 block touch-none"></canvas>
+                    <div id="worm-overlay" class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center p-4 text-center">
+                        <div class="text-sm font-black text-white mb-1">Арена змеек $YUKA</div>
+                        <div class="text-[11px] text-zinc-300 mb-4">Веди пальцем по экрану: собирай монеты и подрезай разноцветных врагов!</div>
+                        <button id="worm-start-btn" class="chrome-btn px-6 py-2.5 rounded-xl text-xs">В бой</button>
+                    </div>
+                </div>
+            `;
+            const canvas = document.getElementById('worm-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 380;
+            canvas.height = 384;
+
+            const ARENA_R = 520;
+            const BOT_COLORS = ['#38bdf8', '#34d399', '#fbbf24', '#c084fc', '#fb7185', '#2dd4bf', '#a3e635', '#818cf8'];
+            let player = null, bots = [], food = [], score = 0, running = false, rafId = null;
+
+            function spawnBot(idx) {
+                const ang = Math.random() * Math.PI * 2;
+                const dist = 120 + Math.random() * 280;
+                const hx = Math.cos(ang) * dist;
+                const hy = Math.sin(ang) * dist;
+                const segs = [];
+                for (let i = 0; i < 14; i++) segs.push({ x: hx - i * 6, y: hy });
+                return {
+                    color: BOT_COLORS[idx % BOT_COLORS.length],
+                    angle: Math.random() * Math.PI * 2,
+                    segs,
+                    turnTimer: 0
+                };
+            }
+
+            function initArena() {
+                const startSegs = [];
+                for (let i = 0; i < 16; i++) startSegs.push({ x: -i * 6, y: 0 });
+                player = { angle: 0, targetAngle: 0, segs: startSegs };
+                bots = Array.from({ length: 8 }, (_, i) => spawnBot(i));
+                food = Array.from({ length: 45 }, () => {
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * (ARENA_R - 30);
+                    return { x: Math.cos(a) * r, y: Math.sin(a) * r, val: 1 };
+                });
+                score = 0;
+            }
+
+            function drawEyes(x, y, angle, radius) {
+                const eyeOffset = radius * 0.48;
+                const sideOffset = radius * 0.45;
+                [-1, 1].forEach(side => {
+                    const ex = x + Math.cos(angle) * eyeOffset - Math.sin(angle) * sideOffset * side;
+                    const ey = y + Math.sin(angle) * eyeOffset + Math.cos(angle) * sideOffset * side;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, radius * 0.32, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#09090b';
+                    ctx.beginPath();
+                    ctx.arc(ex + Math.cos(angle) * 1.1, ey + Math.sin(angle) * 1.1, radius * 0.17, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            function renderArena() {
+                ctx.fillStyle = '#070709';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(1.15, 1.15);
+                const head = player.segs[0];
+                ctx.translate(-head.x, -head.y);
+
+                // Граница арены
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, 0, ARENA_R, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Монеты
+                food.forEach(f => {
+                    if (customCoinImgObj) {
+                        const sz = f.val > 1 ? 18 : 13;
+                        ctx.drawImage(customCoinImgObj, f.x - sz / 2, f.y - sz / 2, sz, sz);
+                    } else {
+                        ctx.fillStyle = f.val > 1 ? '#fbbf24' : '#e4e4e7';
+                        ctx.beginPath();
+                        ctx.arc(f.x, f.y, f.val > 1 ? 6 : 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                // Вражеские разноцветные червяки
+                bots.forEach(b => {
+                    for (let i = b.segs.length - 1; i >= 0; i--) {
+                        const s = b.segs[i];
+                        ctx.fillStyle = b.color;
+                        ctx.beginPath();
+                        ctx.arc(s.x, s.y, i === 0 ? 8.5 : 6.8, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    drawEyes(b.segs[0].x, b.segs[0].y, b.angle, 8.5);
+                });
+
+                // Основной хромированно-белый червяк игрока с глазами
+                for (let i = player.segs.length - 1; i >= 0; i--) {
+                    const s = player.segs[i];
+                    ctx.fillStyle = i % 2 === 0 ? '#f4f4f6' : '#a1a1aa';
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, i === 0 ? 9.5 : 7.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                drawEyes(player.segs[0].x, player.segs[0].y, player.angle, 9.5);
+
+                ctx.restore();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '900 16px Inter, sans-serif';
+                ctx.fillText(`Очки: ${score}`, 14, 26);
+            }
+
+            function stepWorm() {
+                if (!running) return;
+                // Плавный поворот игрока
+                let diff = player.targetAngle - player.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                player.angle += diff * 0.16;
+
+                const pHead = player.segs[0];
+                const nx = pHead.x + Math.cos(player.angle) * 2.8;
+                const ny = pHead.y + Math.sin(player.angle) * 2.8;
+                player.segs.unshift({ x: nx, y: ny });
+                player.segs.pop();
+
+                if (Math.hypot(nx, ny) > ARENA_R - 8) {
+                    finishWorm();
+                    return;
+                }
+
+                // Сбор монет
+                food.forEach((f, idx) => {
+                    if (Math.hypot(nx - f.x, ny - f.y) < 16) {
+                        score += f.val;
+                        const tail = player.segs[player.segs.length - 1];
+                        player.segs.push({ x: tail.x, y: tail.y });
+                        const a = Math.random() * Math.PI * 2;
+                        const r = Math.random() * (ARENA_R - 30);
+                        food[idx] = { x: Math.cos(a) * r, y: Math.sin(a) * r, val: 1 };
+                    }
+                });
+
+                // Движение и взаимные столкновения ботов
+                for (let bi = bots.length - 1; bi >= 0; bi--) {
+                    const b = bots[bi];
+                    b.turnTimer--;
+                    if (b.turnTimer <= 0) {
+                        b.angle += (Math.random() - 0.5) * 1.4;
+                        b.turnTimer = 25 + Math.floor(Math.random() * 35);
+                    }
+                    const bh = b.segs[0];
+                    if (Math.hypot(bh.x, bh.y) > ARENA_R - 60) {
+                        b.angle = Math.atan2(-bh.y, -bh.x);
+                    }
+                    const bnx = bh.x + Math.cos(b.angle) * 2.2;
+                    const bny = bh.y + Math.sin(b.angle) * 2.2;
+                    b.segs.unshift({ x: bnx, y: bny });
+                    b.segs.pop();
+
+                    // 1. Враг врезался головой в тело игрока -> враг уничтожен и рассыпает монеты!
+                    let botKilled = false;
+                    for (let pi = 1; pi < player.segs.length; pi++) {
+                        if (Math.hypot(bnx - player.segs[pi].x, bny - player.segs[pi].y) < 13) {
+                            botKilled = true;
+                            break;
+                        }
+                    }
+                    if (botKilled) {
+                        b.segs.forEach((seg, si) => {
+                            if (si % 2 === 0) food.push({ x: seg.x, y: seg.y, val: 3 });
+                        });
+                        score += 10;
+                        haptic('success');
+                        bots[bi] = spawnBot(bi);
+                        continue;
+                    }
+
+                    // 2. Игрок врезался головой в тело врага -> конец раунда
+                    for (let si = 0; si < b.segs.length; si++) {
+                        if (Math.hypot(nx - b.segs[si].x, ny - b.segs[si].y) < 12) {
+                            finishWorm();
+                            return;
+                        }
+                    }
+                }
+
+                renderArena();
+                if (running) rafId = requestAnimationFrame(stepWorm);
+            }
+
+            function finishWorm() {
+                running = false;
+                cancelAnimationFrame(rafId);
+                const reward = score * 60;
+                if (score > state.records.worm) state.records.worm = score;
+                state.balance += reward;
+                state.totalEarned += reward;
+                haptic('error');
+                const ov = document.getElementById('worm-overlay');
+                ov.classList.remove('hidden');
+                ov.innerHTML = `
+                    <div class="text-base font-black text-white">Столкновение на арене!</div>
+                    <div class="text-xs text-zinc-300 mt-1">Очки: <span class="font-bold text-white">${score}</span> • Награда: <span class="text-emerald-400 font-bold">+$${fmt(reward)}</span></div>
+                    <button id="worm-restart-btn" class="chrome-btn px-6 py-2.5 rounded-xl text-xs mt-4">Снова на арену</button>
+                `;
+                document.getElementById('worm-restart-btn').onclick = startWormRound;
+            }
+
+            function startWormRound() {
+                initArena();
+                running = true;
+                document.getElementById('worm-overlay').classList.add('hidden');
+                stepWorm();
+            }
+
+            canvas.onpointermove = (e) => {
+                if (!running || !player) return;
+                const rect = canvas.getBoundingClientRect();
+                const dx = (e.clientX - rect.left) - rect.width / 2;
+                const dy = (e.clientY - rect.top) - rect.height / 2;
+                player.targetAngle = Math.atan2(dy, dx);
+            };
+            canvas.onpointerdown = canvas.onpointermove;
+
+            document.getElementById('worm-start-btn').onclick = startWormRound;
+            initArena();
+            renderArena();
+            activeGameCleanup = () => { running = false; cancelAnimationFrame(rafId); };
+        }
+
+        // --- 3) YUKA БЛИЦ (Случайные координаты спавна, монеты + бомбы) ---
+        function startBlitzGame(title, body) {
+            title.textContent = 'YUKA Блиц';
+            body.innerHTML = `
+                <div class="flex justify-between text-xs font-bold text-zinc-300 mb-2">
+                    <span>Время: <span id="blitz-time" class="text-white">15.0</span>с</span>
+                    <span>Счёт: <span id="blitz-score" class="text-white">0</span></span>
+                </div>
+                <div id="blitz-arena" class="relative w-full h-72 rounded-2xl bg-black/60 border border-white/15 overflow-hidden">
+                    <div id="blitz-start-wrap" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                        <div class="text-xs text-zinc-300 mb-3">Нажимай на появляющиеся монеты $YUKA и избегай бомб!</div>
+                        <button id="blitz-start-btn" class="chrome-btn px-6 py-2.5 rounded-xl text-xs">Старт (15 сек)</button>
+                    </div>
+                </div>
+            `;
+            let score = 0, timeLeft = 15.0, timerInt = null, spawnInt = null;
+
+            function startBlitz() {
+                document.getElementById('blitz-start-wrap').remove();
+                const arena = document.getElementById('blitz-arena');
+
+                spawnInt = setInterval(() => {
+                    const isBomb = Math.random() < 0.26;
+                    const item = document.createElement('button');
+                    const leftPct = 10 + Math.random() * 76;
+                    const topPct = 10 + Math.random() * 74;
+                    item.style.left = `${leftPct}%`;
+                    item.style.top = `${topPct}%`;
+                    item.className = 'absolute w-11 h-11 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                    item.innerHTML = isBomb
+                        ? `<span class="w-full h-full rounded-full bg-red-500/20 border border-red-400 text-red-400 flex items-center justify-center"><i class="fa-solid fa-bomb"></i></span>`
+                        : buildCoinImgMarkup('w-full h-full');
+
+                    item.onpointerdown = (e) => {
+                        e.stopPropagation();
+                        if (isBomb) {
+                            score = Math.max(0, score - 3);
+                            haptic('error');
+                        } else {
+                            score += 1;
+                            haptic('light');
+                        }
+                        document.getElementById('blitz-score').textContent = score;
+                        item.remove();
+                    };
+                    arena.appendChild(item);
+                    setTimeout(() => item.remove(), 1100);
+                }, 420);
+
+                timerInt = setInterval(() => {
+                    timeLeft -= 0.1;
+                    const tEl = document.getElementById('blitz-time');
+                    if (tEl) tEl.textContent = Math.max(0, timeLeft).toFixed(1);
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInt);
+                        clearInterval(spawnInt);
+                        const reward = score * 120;
+                        if (score > state.records.blitz) state.records.blitz = score;
+                        state.balance += reward;
+                        state.totalEarned += reward;
+                        arena.innerHTML = `
+                            <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                                <div class="text-base font-black text-white">Время вышло!</div>
+                                <div class="text-xs text-zinc-300 mt-1">Поймано: ${score} • Выигрыш: <span class="text-emerald-400 font-bold">+$${fmt(reward)}</span></div>
+                                <button onclick="openMiniGame('blitz')" class="chrome-btn px-6 py-2.5 rounded-xl text-xs mt-4">Ещё раз</button>
+                            </div>
+                        `;
+                    }
+                }, 100);
+            }
+
+            document.getElementById('blitz-start-btn').onclick = startBlitz;
+            activeGameCleanup = () => { clearInterval(timerInt); clearInterval(spawnInt); };
+        }
+
+        // --- 4) ХРОМОВЫЙ СЕЙФ (Сапёр с отображением монеты в ячейках) ---
+        function startSafeGame(title, body) {
+            title.textContent = 'Хромовый Сейф';
+            const bet = 200;
+            let mult = 1.0, active = false, bombIdx = -1;
+
+            function renderSafe() {
+                body.innerHTML = `
+                    <div class="text-center mb-3">
+                        <div class="text-xs text-zinc-400">Ставка: <span class="text-white font-bold">$${bet}</span> • Текущий выигрыш: <span id="safe-win" class="text-emerald-400 font-black">$${bet}</span></div>
+                    </div>
+                    <div id="safe-grid" class="grid grid-cols-3 gap-2.5 mb-3">
+                        ${Array.from({ length: 9 }, (_, i) => `
+                            <button data-idx="${i}" class="safe-cell h-20 rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center text-zinc-400 font-black text-lg active:scale-95 transition">
+                                <i class="fa-solid fa-lock text-sm"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <button id="safe-action-btn" class="chrome-btn w-full py-3 rounded-xl text-xs">
+                        ${active ? 'Забрать выигрыш' : `Начать раунд ($${bet})`}
+                    </button>
+                `;
+
+                document.getElementById('safe-action-btn').onclick = () => {
+                    if (!active) {
+                        if (Number(state.balance) < bet) {
+                            showToast('Недостаточно $YUKA для ставки', 'fa-coins');
+                            return;
+                        }
+                        state.balance -= bet;
+                        updateUI();
+                        active = true;
+                        mult = 1.0;
+                        bombIdx = Math.floor(Math.random() * 9);
+                        renderSafe();
+                    } else {
+                        active = false;
+                        const win = Math.floor(bet * mult);
+                        state.balance += win;
+                        state.totalEarned += win;
+                        haptic('success');
+                        showToast(`Вы забрали $${fmt(win)} из сейфа!`);
+                        renderSafe();
+                        updateUI();
+                    }
+                };
+
+                document.querySelectorAll('.safe-cell').forEach(cell => {
+                    cell.onclick = () => {
+                        if (!active || cell.dataset.opened === '1') return;
+                        const idx = Number(cell.dataset.idx);
+                        cell.dataset.opened = '1';
+                        if (idx === bombIdx) {
+                            active = false;
+                            haptic('error');
+                            document.querySelectorAll('.safe-cell').forEach(c => {
+                                const ci = Number(c.dataset.idx);
+                                if (ci === bombIdx) {
+                                    c.className = 'safe-cell h-20 rounded-2xl bg-red-500/20 border border-red-400 flex items-center justify-center text-red-400 text-lg';
+                                    c.innerHTML = `<i class="fa-solid fa-bomb"></i>`;
+                                } else if (c.dataset.opened !== '1') {
+                                    c.innerHTML = buildCoinImgMarkup('w-8 h-8 opacity-40');
+                                }
+                            });
+                            document.getElementById('safe-action-btn').textContent = `Сыграть снова ($${bet})`;
+                        } else {
+                            mult = +(mult + 0.35).toFixed(2);
+                            haptic('light');
+                            cell.className = 'safe-cell h-20 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-center';
+                            cell.innerHTML = buildCoinImgMarkup('w-10 h-10');
+                            document.getElementById('safe-win').textContent = `$${fmt(Math.floor(bet * mult))}`;
+                            document.getElementById('safe-action-btn').textContent = `Забрать $${fmt(Math.floor(bet * mult))}`;
+                        }
+                    };
+                });
+            }
+
+            renderSafe();
+        }
+
+        // --- 5) YUKA СЛОТЫ (3 барабана с монетой $YUKA и блокировкой во время спина) ---
+        function startSlotsGame(title, body) {
+            title.textContent = 'YUKA Слоты';
+            const bet = 200;
+            let spinning = false;
+            const symbols = ['coin', 'gem', 'bolt', 'crown'];
+
+            function renderReelItem(sym) {
+                if (sym === 'coin') return buildCoinImgMarkup('w-11 h-11');
+                if (sym === 'gem') return `<i class="fa-solid fa-gem text-2xl text-zinc-200"></i>`;
+                if (sym === 'bolt') return `<i class="fa-solid fa-bolt text-2xl text-amber-300"></i>`;
+                return `<i class="fa-solid fa-crown text-2xl text-white"></i>`;
+            }
+
+            body.innerHTML = `
+                <div class="text-center">
+                    <div class="text-xs text-zinc-400 mb-3">3 монеты $YUKA = <span class="text-white font-bold">×10</span> • Любые 3 совпадения = <span class="text-white font-bold">×4</span></div>
+                    <div class="grid grid-cols-3 gap-2.5 my-3">
+                        <div id="reel-0" class="h-24 rounded-2xl bg-black/60 border border-white/15 flex items-center justify-center">${renderReelItem('coin')}</div>
+                        <div id="reel-1" class="h-24 rounded-2xl bg-black/60 border border-white/15 flex items-center justify-center">${renderReelItem('coin')}</div>
+                        <div id="reel-2" class="h-24 rounded-2xl bg-black/60 border border-white/15 flex items-center justify-center">${renderReelItem('coin')}</div>
+                    </div>
+                    <div id="slots-status" class="text-xs font-bold text-zinc-300 h-5 mb-2">Ставка: $${bet}</div>
+                    <button id="slots-spin-btn" class="chrome-btn w-full py-3 rounded-xl text-xs">Крутить ($${bet})</button>
+                </div>
+            `;
+
+            document.getElementById('slots-spin-btn').onclick = () => {
+                if (spinning) return;
+                if (Number(state.balance) < bet) {
+                    showToast('Недостаточно $YUKA для спина', 'fa-coins');
+                    return;
+                }
+                state.balance -= bet;
+                updateUI();
+                spinning = true;
+                const btn = document.getElementById('slots-spin-btn');
+                btn.disabled = true;
+                document.getElementById('slots-status').textContent = 'Барабаны вращаются...';
+
+                let ticks = 0;
+                const spinTimer = setInterval(() => {
+                    ticks++;
+                    const current = [0, 1, 2].map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+                    current.forEach((s, i) => {
+                        const el = document.getElementById(`reel-${i}`);
+                        if (el) el.innerHTML = renderReelItem(s);
+                    });
+                    if (ticks >= 14) {
+                        clearInterval(spinTimer);
+                        spinning = false;
+                        btn.disabled = false;
+                        if (current[0] === current[1] && current[1] === current[2]) {
+                            const mult = current[0] === 'coin' ? 10 : 4;
+                            const win = bet * mult;
+                            state.balance += win;
+                            state.totalEarned += win;
+                            haptic('success');
+                            document.getElementById('slots-status').textContent = `Джекпот ×${mult}! Выигрыш +$${fmt(win)}`;
+                            updateUI();
+                        } else if (current[0] === current[1] || current[1] === current[2] || current[0] === current[2]) {
+                            const win = Math.floor(bet * 1.5);
+                            state.balance += win;
+                            state.totalEarned += win;
+                            haptic('light');
+                            document.getElementById('slots-status').textContent = `Пара совпала! Возврат +$${fmt(win)}`;
+                            updateUI();
+                        } else {
+                            document.getElementById('slots-status').textContent = 'Не повезло, крути ещё!';
+                        }
+                    }
+                }, 70);
+            };
+        }
+
+        // --- 6) YUKA CRASH (Живой Canvas-график с растущей кривой и множителем) ---
+        function startCrashGame(title, body) {
+            title.textContent = 'YUKA Crash';
+            let bet = 200, mult = 1.0, crashPoint = 2.0, active = false, crashed = false, cashedOut = false, rafId = null;
+            let historyPoints = [1.0];
+
+            body.innerHTML = `
+                <div class="text-center">
+                    <div class="relative h-52 rounded-2xl bg-black/75 border border-white/15 overflow-hidden">
+                        <canvas id="crash-canvas" class="w-full h-full block"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <div id="crash-mult" class="text-4xl font-black text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">1.00x</div>
+                            <div id="crash-sub" class="text-[11px] font-semibold text-zinc-300 mt-1 bg-black/45 px-2.5 py-0.5 rounded-full">Успей забрать ставку до обвала графика</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-5 gap-1.5 my-3">
+                        ${[100, 250, 1000, 5000].map(v => `<button onclick="window._setCrashBet(${v})" class="py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-bold text-white active:scale-95 transition">$${v}</button>`).join('')}
+                        <button onclick="window._setCrashBet(Math.max(100, Math.floor(state.balance * 0.1)))" class="py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-bold text-zinc-200 active:scale-95 transition">10%</button>
+                    </div>
+                    <button id="crash-btn" class="chrome-btn w-full py-3 rounded-xl text-xs">Поставить $${fmt(bet)}</button>
+                </div>
+            `;
+
+            const canvas = document.getElementById('crash-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 380;
+            canvas.height = 208;
+
+            function drawCrashGraph() {
+                const w = canvas.width;
+                const h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                // Фоновая сетка графика
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+                ctx.lineWidth = 1;
+                for (let gx = 40; gx < w; gx += 48) {
+                    ctx.beginPath();
+                    ctx.moveTo(gx, 0);
+                    ctx.lineTo(gx, h);
+                    ctx.stroke();
+                }
+                for (let gy = 28; gy < h; gy += 36) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, gy);
+                    ctx.lineTo(w, gy);
+                    ctx.stroke();
+                }
+
+                // Базовые оси координат
+                const padL = 24, padR = 26, padB = 22, padT = 22;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(padL, padT);
+                ctx.lineTo(padL, h - padB);
+                ctx.lineTo(w - padR, h - padB);
+                ctx.stroke();
+
+                if (historyPoints.length < 2) return;
+
+                const plotW = w - padL - padR;
+                const plotH = h - padT - padB;
+                const maxVal = Math.max(2.2, mult * 1.15);
+
+                const pts = historyPoints.map((val, idx) => {
+                    const t = idx / Math.max(1, historyPoints.length - 1);
+                    const normY = (val - 1.0) / Math.max(0.5, maxVal - 1.0);
+                    return {
+                        x: padL + t * plotW,
+                        y: (h - padB) - Math.min(1, Math.max(0, normY)) * plotH
+                    };
+                });
+
+                const lineColor = crashed ? '#f87171' : cashedOut ? '#34d399' : '#f4f4f6';
+                const fillTop = crashed ? 'rgba(248, 113, 113, 0.25)' : cashedOut ? 'rgba(52, 211, 153, 0.25)' : 'rgba(255, 255, 255, 0.22)';
+
+                // Градиентная заливка под кривой
+                const areaGrad = ctx.createLinearGradient(0, padT, 0, h - padB);
+                areaGrad.addColorStop(0, fillTop);
+                areaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = areaGrad;
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, h - padB);
+                pts.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.lineTo(pts[pts.length - 1].x, h - padB);
+                ctx.closePath();
+                ctx.fill();
+
+                // Сама линия графика
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 3.2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                pts.forEach((p, i) => {
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+
+                // Светящаяся точка / монета на вершине графика
+                const tip = pts[pts.length - 1];
+                ctx.save();
+                ctx.shadowColor = lineColor;
+                ctx.shadowBlur = 14;
+                if (customCoinImgObj && !crashed) {
+                    ctx.drawImage(customCoinImgObj, tip.x - 10, tip.y - 10, 20, 20);
+                } else {
+                    ctx.fillStyle = lineColor;
+                    ctx.beginPath();
+                    ctx.arc(tip.x, tip.y, 5.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            window._setCrashBet = (v) => {
+                if (active) return;
+                bet = Math.max(50, Math.floor(v));
+                document.getElementById('crash-btn').textContent = `Поставить $${fmt(bet)}`;
+            };
+
+            function stepCrash() {
+                if (!active) return;
+                mult += 0.011 + mult * 0.0048;
+                historyPoints.push(mult);
+                if (historyPoints.length > 180) {
+                    historyPoints = historyPoints.filter((_, i) => i % 2 === 0 || i === historyPoints.length - 1);
+                }
+
+                document.getElementById('crash-mult').textContent = `${mult.toFixed(2)}x`;
+                if (!cashedOut) {
+                    document.getElementById('crash-btn').textContent = `ЗАБРАТЬ $${fmt(Math.floor(bet * mult))}`;
+                }
+
+                if (mult >= crashPoint) {
+                    active = false;
+                    crashed = true;
+                    drawCrashGraph();
+                    haptic('error');
+                    document.getElementById('crash-mult').className = 'text-4xl font-black text-red-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]';
+                    document.getElementById('crash-sub').textContent = `График обрушился на ${crashPoint.toFixed(2)}x!`;
+                    document.getElementById('crash-btn').textContent = `Поставить $${fmt(bet)}`;
+                    return;
+                }
+
+                drawCrashGraph();
+                rafId = requestAnimationFrame(stepCrash);
+            }
+
+            document.getElementById('crash-btn').onclick = () => {
+                if (!active) {
+                    if (Number(state.balance) < bet) {
+                        showToast('Недостаточно $YUKA для ставки', 'fa-coins');
+                        return;
+                    }
+                    state.balance -= bet;
+                    updateUI();
+                    mult = 1.0;
+                    historyPoints = [1.0];
+                    crashed = false;
+                    cashedOut = false;
+                    crashPoint = 1.2 + Math.pow(Math.random(), 2.1) * 11.5;
+                    active = true;
+                    document.getElementById('crash-mult').className = 'text-4xl font-black text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]';
+                    document.getElementById('crash-sub').textContent = 'Множитель растёт — жми «ЗАБРАТЬ»!';
+                    stepCrash();
+                } else {
+                    active = false;
+                    cashedOut = true;
+                    cancelAnimationFrame(rafId);
+                    drawCrashGraph();
+                    const win = Math.floor(bet * mult);
+                    if (mult > state.records.crash) state.records.crash = +mult.toFixed(2);
+                    state.balance += win;
+                    state.totalEarned += win;
+                    haptic('success');
+                    document.getElementById('crash-mult').className = 'text-4xl font-black text-emerald-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]';
+                    document.getElementById('crash-sub').textContent = `Забрано +$${fmt(win)} на ${mult.toFixed(2)}x!`;
+                    showToast(`Вы забрали $${fmt(win)} на ${mult.toFixed(2)}x!`);
+                    document.getElementById('crash-btn').textContent = `Поставить $${fmt(bet)}`;
+                    updateUI();
+                }
+            };
+
+            drawCrashGraph();
+            activeGameCleanup = () => { active = false; cancelAnimationFrame(rafId); };
+        }
+
+        // ==========================================
+        // 10. ОБНОВЛЕНИЕ ИНТЕРФЕЙСА И ТАЙМЕРЫ
+        // ==========================================
+        function updateUI() {
+            document.getElementById('user-name').textContent = tgUser.first_name || 'YUKA Pioneer';
+            document.getElementById('user-avatar').textContent = (tgUser.first_name || 'Y')[0].toUpperCase();
+
+            const pBadge = document.getElementById('prestige-badge');
+            if (state.prestigeLevel > 0) {
+                pBadge.textContent = `T${state.prestigeLevel}`;
+                pBadge.classList.remove('hidden');
+            }
+
+            const sq = SQUADS.find(s => s.id === state.squadId);
+            document.getElementById('squad-tag').textContent = sq ? `[${sq.tag}]` : 'Без сквада';
+
+            document.getElementById('balance-display').textContent = fmt(state.balance);
+            document.getElementById('passive-rate').textContent = `+${fmt(getEffectivePassiveRate())}`;
+            document.getElementById('tap-power-display').textContent = fmt(getEffectiveTapPower());
+
+            const { current, next } = getCurrentLeague();
+            document.getElementById('league-name').textContent = current.name;
+            document.getElementById('league-progress-label').textContent = current.name;
+            if (next) {
+                document.getElementById('league-next-label').textContent = `До ${next.name}: ${fmt(next.min)}`;
+                const pct = Math.min(100, Math.max(0, ((state.totalEarned - current.min) / (next.min - current.min)) * 100));
+                document.getElementById('league-progress-bar').style.width = `${pct}%`;
+            } else {
+                document.getElementById('league-next-label').textContent = 'Максимальная лига';
+                document.getElementById('league-progress-bar').style.width = '100%';
+            }
+
+            document.getElementById('energy-text').textContent = `${Math.floor(state.energy)} / ${state.maxEnergy}`;
+            document.getElementById('energy-bar').style.width = `${(state.energy / state.maxEnergy) * 100}%`;
+            document.getElementById('full-energy-charges').textContent = `${state.fullEnergyLeft} / 3 доступно`;
+            document.getElementById('turbo-charges').textContent = `${state.turboLeft} / 3 доступно`;
+            document.getElementById('turbo-badge').classList.toggle('hidden', Date.now() >= state.turboUntil);
+
+            document.getElementById('rec-flappy').textContent = state.records.flappy;
+            document.getElementById('rec-worm').textContent = state.records.worm;
+            document.getElementById('rec-blitz').textContent = state.records.blitz;
+            document.getElementById('rec-crash').textContent = state.records.crash.toFixed(2);
+        }
+
+        // Тик каждую секунду (регенерация энергии + пассивный майнинг)
+        setInterval(() => {
+            const regen = (2 + (state.upgrades.recharge_spd || 0)) * (1 + (state.squadBuffs.energy || 0) * 0.15);
+            if (state.energy < state.maxEnergy) {
+                state.energy = Math.min(state.maxEnergy, state.energy + regen);
+            }
+            const passivePerSec = getEffectivePassiveRate() / 3600;
+            if (passivePerSec > 0) {
+                state.balance += passivePerSec;
+                state.totalEarned += passivePerSec;
+            }
+            updateUI();
+        }, 1000);
+
+        // Фоновое автосохранение каждые 5 секунд
+        setInterval(saveGameState, 5000);
+
+        // Поддержка пробела для клика на компьютере (Telegram Desktop)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !document.getElementById('tab-clicker').classList.contains('hidden')) {
+                const modalOpen = !document.getElementById('minigame-modal').classList.contains('hidden') ||
+                                  !document.getElementById('profile-modal').classList.contains('hidden') ||
+                                  !document.getElementById('offline-modal').classList.contains('hidden');
+                if (!modalOpen) {
+                    e.preventDefault();
+                    handleCoinDown({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+                    setTimeout(() => handleCoinUp({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }), 50);
+                }
+            }
+        });
+
+        // Мгновенное сохранение при сворачивании Telegram Mini App
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') saveGameState();
+        });
+        window.addEventListener('beforeunload', saveGameState);
+
+        // Запуск
+        window.addEventListener('DOMContentLoaded', () => {
+            loadGameState(() => {
+                initCustomCoinAsset();
+                renderMorseSlots();
+                selectOrBuySkin(state.activeSkin || 'chrome');
+                checkOfflineEarnings();
+                updateUI();
+            });
+        });
+    </script>
+</body>
+</html>
